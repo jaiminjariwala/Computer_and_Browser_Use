@@ -1,7 +1,7 @@
 {
-  "name": "computer-or-browser-use-and-smart-copilot",
+  "name": "computer-or-browser-use",
   "version": "1.0.0",
-  "description": "Computer or Browser Use and Smart Copilot - a screen-aware macOS app that advises you (Smart Copilot) or acts for you in a browser or on your Mac (Computer or Browser Use).",
+  "description": "Computer or Browser Use - a screen-aware macOS app that advises you or acts for you in a browser or on your Mac.",
   "main": "out/main/index.js",
   "author": "",
   "license": "MIT",

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""In-container control server for the Click Operator virtual desktop.
+"""In-container control server for the Computer or Browser Use virtual desktop.
 
   GET  /health      -> {"ok": true}
   GET  /screenshot  -> image/png

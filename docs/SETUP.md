@@ -10,14 +10,14 @@ and Colima parts.
 | --- | --- | --- |
 | macOS | The app is macOS-only right now. | Apple Silicon or Intel. |
 | Node.js 18+ | Build and dev tooling (electron-vite, Vitest). | `node -v` to check. |
-| An AI provider key | Optional; improves copilot answers and operator reasoning. | Any OpenAI-compatible provider you control. Free hosted options are in Settings. |
+| An AI provider API key | Optional for deterministic routes; required for chat and model reasoning. | Gemini, OpenRouter, or another OpenAI-compatible provider you control. “Free” providers still require their own API key and enforce rate limits. |
 | Colima + Docker CLI | Only for the operator's **Sandboxed browser** environment. | Docker Desktop is not required (and may be license-blocked at work). |
 
 ## 2. Install
 
 ```bash
 git clone <your-fork-or-repo>
-cd click-copilot
+cd computer-or-browser-use
 npm install
 ```
 
@@ -109,10 +109,10 @@ Build the sandbox image (one time, or after changing the container):
 
 ```bash
 cd operator-docker
-docker build -t click-operator-desktop:latest .
+docker build -t computer-or-browser-use-desktop:latest .
 ```
 
-That single image tag, `click-operator-desktop:latest`, is what the app runs.
+That single image tag, `computer-or-browser-use-desktop:latest`, is what the app runs.
 You do not start the container yourself. The app does `docker run ...` when you
 pick **Sandboxed browser** and start a task, and tears it down afterward.
 
@@ -120,7 +120,7 @@ pick **Sandboxed browser** and start a task, and tears it down afterward.
   pick "Sandboxed browser" + start goal
         |
         v
-  docker run click-operator-desktop:latest   (Xvfb + fluxbox + Chromium + noVNC)
+  docker run computer-or-browser-use-desktop:latest   (Xvfb + fluxbox + Chromium + noVNC)
         |
         v
   live desktop window opens (noVNC)  <-- you watch here

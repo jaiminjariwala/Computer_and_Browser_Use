@@ -4,9 +4,9 @@ import type { BrowserWindowConstructorOptions } from 'electron'
 /**
  * Pure BrowserWindow option factories + window constants (Task 3.1).
  *
- * The security-critical configuration for both Click Operator windows lives
+ * The security-critical configuration for both Computer or Browser Use windows lives
  * here as PURE functions so it can be asserted headlessly in unit tests without
- * launching Electron (mirrors Click Copilot's `windows.ts`). The stateful
+ * launching Electron (mirrors Computer or Browser Use's `windows.ts`). The stateful
  * lifecycle lives in `manager.ts`.
  *
  * Both renderers are locked down per the design — `contextIsolation: true`,

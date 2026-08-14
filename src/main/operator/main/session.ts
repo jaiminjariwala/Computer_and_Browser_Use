@@ -2,9 +2,9 @@
  * Session / Trajectory Manager (Task 12.1, 12.2) — public surface.
  *
  * Migrated onto the design's data model (`AgentSession`, `Trajectory`,
- * `TrajectorySummary`) from the Click Copilot `session.ts` primitive vendored in
- * Task 2. Reuse rule (Req 19): Click Operator owns and evolves this copy; it
- * imports from `@op-shared/types` and nothing here references the `click-copilot`
+ * `TrajectorySummary`) from the Computer or Browser Use `session.ts` primitive vendored in
+ * Task 2. Reuse rule (Req 19): Computer or Browser Use owns and evolves this copy; it
+ * imports from `@op-shared/types` and nothing here references the `computer-or-browser-use`
  * project.
  *
  * This used to be one large module; it is now a thin barrel over `./session/*`

@@ -10,10 +10,10 @@ import { KEEP_RECENT } from './session'
 /**
  * Summarizer + bounded-context assembly (Task 12.4).
  *
- * Migrated onto the design's data model from the Click Copilot `summarizer.ts`
- * primitive vendored in Task 2. Reuse rule (Req 19): Click Operator owns and
+ * Migrated onto the design's data model from the Computer or Browser Use `summarizer.ts`
+ * primitive vendored in Task 2. Reuse rule (Req 19): Computer or Browser Use owns and
  * evolves this copy; it imports from `@op-shared/types` and does not reference the
- * `click-copilot` project or any gateway client directly — the fold is an
+ * `computer-or-browser-use` project or any gateway client directly — the fold is an
  * injected {@link SummarizeFn} (the ReasoningRouter's `summarize`).
  *
  * Responsibilities:

@@ -15,9 +15,9 @@ import {
  * Perception Service (Task 7) — the Electron-aware shell over the pure
  * {@link buildObservation} pipeline.
  *
- * Evolved from the Click Copilot `capture.ts` pipeline vendored in Task 2 (reuse
- * rule Req 19: a one-time copy Click Operator now owns; it never imports from the
- * `click-copilot` project). Every failure path is fail-closed — it yields NO
+ * Evolved from the Computer or Browser Use `capture.ts` pipeline vendored in Task 2 (reuse
+ * rule Req 19: a one-time copy Computer or Browser Use now owns; it never imports from the
+ * `computer-or-browser-use` project). Every failure path is fail-closed — it yields NO
  * Observation:
  *  - Capture ONLY while an Agent_Session is active (Req 2.5).
  *  - On capture failure produce no Observation and signal the loop to pause,

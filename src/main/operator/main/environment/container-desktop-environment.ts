@@ -23,9 +23,9 @@ import type { Environment, EnvironmentHealth, EnvironmentViewport } from './type
 export type DockerRun = (args: string[]) => Promise<string>
 
 export interface ContainerDesktopEnvironmentDeps {
-    /** Image tag to run. Defaults to `click-operator-desktop:latest`. */
+    /** Image tag to run. Defaults to `computer-or-browser-use-desktop:latest`. */
     image?: string
-    /** Container name. Defaults to `click-operator-desktop`. */
+    /** Container name. Defaults to `computer-or-browser-use-desktop`. */
     containerName?: string
     /** Desktop resolution / coordinate space. Defaults to 1280×800. */
     viewport?: { width: number; height: number }
@@ -80,8 +80,8 @@ export class ContainerDesktopEnvironment implements Environment {
     private running = false
 
     constructor(deps: ContainerDesktopEnvironmentDeps = {}) {
-        this.image = deps.image ?? 'click-operator-desktop:latest'
-        this.containerName = deps.containerName ?? 'click-operator-desktop'
+        this.image = deps.image ?? 'computer-or-browser-use-desktop:latest'
+        this.containerName = deps.containerName ?? 'computer-or-browser-use-desktop'
         this.vp = deps.viewport ?? { width: 1280, height: 800 }
         this.host = deps.host ?? '127.0.0.1'
         this.controlPort = deps.controlPort ?? 5000

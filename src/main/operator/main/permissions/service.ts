@@ -2,7 +2,7 @@
  * The extended two-permission service (Screen Recording + Accessibility).
  *
  * The vendored `screen.ts` handles Screen Recording alone (legacy GlassError
- * shape). Click Operator needs BOTH macOS permissions:
+ * shape). Computer or Browser Use needs BOTH macOS permissions:
  *
  *   - Screen Recording (Perception) — getMediaAccessStatus('screen')
  *   - Accessibility  (input synthesis) — isTrustedAccessibilityClient(false)

@@ -1,6 +1,6 @@
-appId: com.glass.screencopilot
-productName: Computer or Browser Use and Smart Copilot
-copyright: Copyright © 2025 Computer or Browser Use and Smart Copilot
+appId: com.computerorbrowseruse.app
+productName: Computer or Browser Use
+copyright: Copyright © 2025 Computer or Browser Use
 
 directories:
   output: release
@@ -45,11 +45,11 @@ mac:
   # the user grants it via System Settings > Privacy & Security > Screen Recording.
   # We declare camera/mic usage strings defensively in case capture APIs touch them.
   extendInfo:
-    NSCameraUsageDescription: Computer or Browser Use and Smart Copilot uses the camera when you choose to record a video attachment.
-    NSMicrophoneUsageDescription: Computer or Browser Use and Smart Copilot uses the microphone for voice dictation and, when allowed, audio in video attachments you record.
+    NSCameraUsageDescription: Computer or Browser Use uses the camera when you choose to record a video attachment.
+    NSMicrophoneUsageDescription: Computer or Browser Use uses the microphone for voice dictation and, when allowed, audio in video attachments you record.
     # The Mail connector reads the currently selected message via Apple events
     # (JXA). macOS shows this string in the Automation permission prompt.
-    NSAppleEventsUsageDescription: Computer or Browser Use and Smart Copilot reads the email you selected in Mail or Outlook, only when you attach it to a chat.
+    NSAppleEventsUsageDescription: Computer or Browser Use reads the email you selected in Mail or Outlook, only when you attach it to a chat.
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
@@ -59,7 +59,7 @@ mac:
   identity: null
 
 dmg:
-  title: Computer or Browser Use and Smart Copilot
+  title: Computer or Browser Use
 
 # No publish provider configured for personal builds.
 publish: null

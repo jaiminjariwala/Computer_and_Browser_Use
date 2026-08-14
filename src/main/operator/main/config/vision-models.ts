@@ -1,7 +1,7 @@
 /**
  * Vision-capability filtering (pure — Req 15.6, 21.7 / Property 26).
  *
- * Click Operator only ever drives vision-capable models: the reasoning loop
+ * Computer or Browser Use only ever drives vision-capable models: the reasoning loop
  * feeds screenshots to the provider, so a text-only model is useless and must
  * never be selectable. Everything here is pure and network-free, which is what
  * lets Property 26 exercise it directly.

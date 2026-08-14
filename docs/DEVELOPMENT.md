@@ -138,7 +138,7 @@ deploys are signed with the trusted self-signed certificate created by
 signature causes macOS to request permission again.
 
 ```bash
-APP="Computer or Browser Use and Smart Copilot"
+APP="Computer or Browser Use"
 npm run typecheck && npm test && npm run pack
 codesign --force --deep --options runtime \
   --entitlements build/entitlements.mac.plist \

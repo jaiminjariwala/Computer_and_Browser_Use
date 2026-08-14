@@ -14,17 +14,17 @@ import type {
 import { chromiumFetch } from './chromium-fetch'
 
 /**
- * OpenAI-compatible gateway client — VENDORED from Click Copilot `ai.ts` (Task 2).
+ * OpenAI-compatible gateway client — VENDORED from Computer or Browser Use `ai.ts` (Task 2).
  *
  * STATUS (as of the provider-layer refactor): LEGACY / currently unused. Nothing
- * in Click Operator imports this module — the live reasoning path is
+ * in Computer or Browser Use imports this module — the live reasoning path is
  * `reasoning-request` + `model-provider`, routed by `reasoning.ts`.
  * It is retained intentionally (not deleted) as the historical
  * base the ModelProvider abstraction grew out of; left as-is on purpose.
  *
- * Reuse rule (Req 19): this is a one-time COPY into the Click Operator tree
- * (`src/main/providers/`); it does not import from or modify the `click-copilot`
- * project. Click Operator now owns and evolves this copy. It is the base for the
+ * Reuse rule (Req 19): this is a one-time COPY into the Computer or Browser Use tree
+ * (`src/main/providers/`); it does not import from or modify the `computer-or-browser-use`
+ * project. Computer or Browser Use now owns and evolves this copy. It is the base for the
  * design's **ModelProvider** abstraction (vision + tool/function-calling) with
  * hosted OpenAI-compatible / local implementations behind a
  * ProviderChain router (Task 6). The pure message-assembly helpers and the thin
@@ -40,12 +40,12 @@ import { chromiumFetch } from './chromium-fetch'
 
 /**
  * System behavior contract sent as the first message of every `complete`
- * request. NOTE: this is Click Copilot's advice-only contract as vendored; the
- * Click Operator reasoning contract (computer/task_complete/request_help tools,
+ * request. NOTE: this is Computer or Browser Use's advice-only contract as vendored; the
+ * Computer or Browser Use reasoning contract (computer/task_complete/request_help tools,
  * one Action per Reasoning_Step) is built in Task 6.4.
  */
 export const SYSTEM_PROMPT = [
-    'You are Click Copilot, an advice-only, screen-aware desktop co-pilot that helps the user make progress in whatever application they are using (browsers, design tools, editors, spreadsheets, and so on).',
+    'You are Computer or Browser Use, an advice-only, screen-aware desktop co-pilot that helps the user make progress in whatever application they are using (browsers, design tools, editors, spreadsheets, and so on).',
     '',
     'Inferring intent:',
     "- Infer the user's goal from the ongoing conversation and any captured screen regions. Never ask the user to state their goal explicitly or complete a setup step before you help; the goal is established implicitly through normal conversation.",
@@ -70,7 +70,7 @@ export const SYSTEM_PROMPT = [
 
 /**
  * Speech-to-text model used by {@link GatewayAIClient.transcribe}. Vendored as-is;
- * Click Operator does not use audio, but the client shape is retained.
+ * Computer or Browser Use does not use audio, but the client shape is retained.
  */
 export const TRANSCRIBE_MODEL = 'voxtral-mini-3b-2507'
 
@@ -493,7 +493,7 @@ export class GatewayAIClient implements AIClient {
 
     /**
      * Transcribe recorded audio to text via the gateway's speech-capable model.
-     * Vendored as-is; Click Operator does not use audio in v1. Uses the PRIMARY
+     * Vendored as-is; Computer or Browser Use does not use audio in v1. Uses the PRIMARY
      * gateway only and overrides the model to {@link TRANSCRIBE_MODEL}.
      */
     async transcribe(audioBase64: string, format = 'wav'): Promise<string> {

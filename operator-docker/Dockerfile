@@ -1,4 +1,4 @@
-# Sandboxed virtual desktop for Click Operator,
+# Sandboxed virtual desktop for Computer or Browser Use,
 # now with a hybrid DOM perception layer.
 #
 #   Xvfb        offscreen X display (:99) at a fixed resolution

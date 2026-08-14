@@ -19,14 +19,14 @@ import { credentialsMissingError, noProviderConfiguredError } from './errors'
  * Config / Credential Store (Task 4 — "Config / Credential store and
  * Model_Provider configuration").
  *
- * Evolved from the vendored Click Copilot `config.ts` toward the design's
+ * Evolved from the vendored Computer or Browser Use `config.ts` toward the design's
  * **Model_Provider** model (Req 21). The encrypted-credential pattern
  * (`safeStorage`, secret bytes held in files separate from `config.json`) is
  * retained from the vendor copy; the data model is now the Provider_Chain plus
  * a list of {@link ModelProviderConfig} rather than a single gateway.
  *
- * Reuse rule (Req 19): a one-time COPY that Click Operator now owns; it does
- * not import from or modify the `click-copilot` project.
+ * Reuse rule (Req 19): a one-time COPY that Computer or Browser Use now owns; it does
+ * not import from or modify the `computer-or-browser-use` project.
  *
  * Two files back the store, kept deliberately apart:
  *  - `config.json` holds only non-secret state — the {@link ProviderChain}
@@ -53,7 +53,7 @@ export const EMPTY_STORED_CONFIG: StoredConfig = {
 /** The id of the default primary OpenAI-compatible provider. */
 export const DEFAULT_PRIMARY_PROVIDER_ID = 'primary'
 
-// Distinct from Click Copilot's own `config.json` — the merged operator engine
+// Distinct from Computer or Browser Use's own `config.json` — the merged operator engine
 // shares the same `userData` directory, so its provider-chain config lives in
 // its own file to avoid clobbering the host app's gateway config.
 const CONFIG_FILENAME = 'operator-config.json'

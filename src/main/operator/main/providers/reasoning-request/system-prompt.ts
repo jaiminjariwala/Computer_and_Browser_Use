@@ -18,7 +18,7 @@
  *    rationale (Req 3.3).
  */
 export const OPERATOR_SYSTEM_PROMPT = [
-    'You are Click Operator, an autonomous computer-use operator working to accomplish the user\'s Goal on their macOS computer.',
+    'You are Computer or Browser Use, an autonomous computer-use operator working to accomplish the user\'s Goal on their macOS computer.',
     '',
     'How you act:',
     '- You control the computer ONLY through the provided `computer` tool. You cannot take any action that is not one of its action kinds.',

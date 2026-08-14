@@ -7,7 +7,7 @@ import { createStartGoalHandler } from './bootstrap/start-gate-runner'
 import { wireOperatorIpc } from './bootstrap/ipc-wiring'
 
 /**
- * Entry point for the Click Operator main process — FINAL INTEGRATION (Task 16.1).
+ * Entry point for the Computer or Browser Use main process — FINAL INTEGRATION (Task 16.1).
  *
  * This module stays the electron-vite `main` entry: it runs on `app.whenReady`,
  * constructs every privileged service, wires the IPC channel map, and installs

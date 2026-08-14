@@ -31,7 +31,7 @@ import { jsonAgentSessionCodec, type AgentSessionCodec } from './codec'
  * against a temp directory without any Electron APIs.
  */
 
-// Distinct from Click Copilot's own `sessions/` directory — the merged operator
+// Distinct from Computer or Browser Use's own `sessions/` directory — the merged operator
 // engine shares the same `userData` dir, so its (differently-shaped) sessions
 // live under their own directory to avoid clobbering the host app's chats.
 const SESSIONS_DIRNAME = 'operator-sessions'
@@ -53,7 +53,7 @@ export interface SessionFs {
 
 export interface SessionStoreOptions {
     /**
-     * Directory to store files in. Defaults to `~/.click-operator` so the module
+     * Directory to store files in. Defaults to `~/.computer-or-browser-use` so the module
      * stays Electron-free; the app wiring injects `app.getPath('userData')`.
      */
     userDataDir?: string
@@ -76,7 +76,7 @@ export class SessionStore {
     private writeChain: Promise<void> = Promise.resolve()
 
     constructor(options: SessionStoreOptions = {}) {
-        this.dir = options.userDataDir ?? join(homedir(), '.click-operator')
+        this.dir = options.userDataDir ?? join(homedir(), '.computer-or-browser-use')
         this.fs = options.fs ?? (nodeFs as unknown as SessionFs)
         this.codec = options.codec ?? jsonAgentSessionCodec
     }

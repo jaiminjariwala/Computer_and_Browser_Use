@@ -1,9 +1,9 @@
 /**
  * Perception Service (Task 7) — public surface.
  *
- * Evolved from the Click Copilot `capture.ts` pipeline vendored in Task 2. Reuse
- * rule (Req 19): a one-time copy Click Operator now owns and evolves; it imports
- * from `@op-shared/types` and never references the `click-copilot` project.
+ * Evolved from the Computer or Browser Use `capture.ts` pipeline vendored in Task 2. Reuse
+ * rule (Req 19): a one-time copy Computer or Browser Use now owns and evolves; it imports
+ * from `@op-shared/types` and never references the `computer-or-browser-use` project.
  *
  * This used to be one large module; it is now a thin barrel over `./perception/*`
  * so importers keep importing from `'./perception'` unchanged. The public API is

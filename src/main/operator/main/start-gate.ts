@@ -78,7 +78,7 @@ export function indicatorUnavailableError(): OperatorError {
     return {
         kind: 'indicator-unavailable',
         message:
-            'The "agent in control" indicator could not be displayed, so Click Operator will not start. It is a required safety indicator.',
+            'The "agent in control" indicator could not be displayed, so Computer or Browser Use will not start. It is a required safety indicator.',
         recoverable: true,
         action: 'retry'
     }

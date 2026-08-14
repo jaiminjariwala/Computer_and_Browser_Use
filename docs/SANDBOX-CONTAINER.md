@@ -10,7 +10,7 @@ The image files live in `operator-docker/`.
 ## What is inside the image
 
 ```
-  ┌───────────────────────── container: click-operator-desktop ─────────────────────────┐
+  ┌───────────────────────── container: computer-or-browser-use-desktop ─────────────────────────┐
   │                                                                                       │
   │   Xvfb (:99)          offscreen X display at a fixed resolution                       │
   │   fluxbox             tiny window manager                                             │
@@ -57,8 +57,8 @@ switch environments, it tears the container down.
   pick "Sandboxed browser" + start goal
         │
         ▼
-  docker rm -f click-operator-desktop        (clear any old one)
-  docker run -d ... click-operator-desktop:latest
+  docker rm -f computer-or-browser-use-desktop        (clear any old one)
+  docker run -d ... computer-or-browser-use-desktop:latest
         │
         ▼
   wait for /health to go green
@@ -83,11 +83,11 @@ colima start
 docker context use colima
 
 cd operator-docker
-docker build -t click-operator-desktop:latest .
+docker build -t computer-or-browser-use-desktop:latest .
 ```
 
 Rebuild whenever you change the `Dockerfile`, `entrypoint.sh`, or
-`control_server.py`. The app always runs the `click-operator-desktop:latest` tag.
+`control_server.py`. The app always runs the `computer-or-browser-use-desktop:latest` tag.
 
 ## Why hybrid perception
 

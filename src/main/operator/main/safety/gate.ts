@@ -1,7 +1,7 @@
 /**
  * The single fail-closed gate (Task 11.1) — PURE, Electron-free.
  *
- * This is the ONE execution chokepoint of Click Operator. The Agent Loop never
+ * This is the ONE execution chokepoint of Computer or Browser Use. The Agent Loop never
  * calls the Action Executor directly; every proposed Action is submitted here
  * first. The default posture is **deny**: an Action is allowed to execute ONLY
  * when every safety precondition holds simultaneously; otherwise it is

@@ -1,9 +1,9 @@
 /**
- * Screen Recording permission — VENDORED from Click Copilot `permissions.ts`
+ * Screen Recording permission — VENDORED from Computer or Browser Use `permissions.ts`
  * (Task 2).
  *
- * Reuse rule (Req 19): a one-time COPY into the Click Operator tree; it does not
- * import from or modify the `click-copilot` project. Click Operator owns and
+ * Reuse rule (Req 19): a one-time COPY into the Computer or Browser Use tree; it does not
+ * import from or modify the `computer-or-browser-use` project. Computer or Browser Use owns and
  * evolves this copy. This module is the ORIGINAL screen-only flow using the
  * legacy `GlassError` shape; the extended, two-permission service (Screen
  * Recording + Accessibility, using `OperatorError`) lives in `service.ts`.
@@ -85,8 +85,8 @@ export function mapStatusToResult(
     const kind = previouslyGranted ? 'permission-revoked' : 'permission-missing'
 
     const message = previouslyGranted
-        ? 'Screen Recording permission was turned off, so Click Operator cannot capture your screen. Re-enable it in System Settings to continue.'
-        : 'Click Operator needs Screen Recording permission to capture your screen. Enable it in System Settings to continue.'
+        ? 'Screen Recording permission was turned off, so Computer or Browser Use cannot capture your screen. Re-enable it in System Settings to continue.'
+        : 'Computer or Browser Use needs Screen Recording permission to capture your screen. Enable it in System Settings to continue.'
 
     const error: GlassError = {
         kind,

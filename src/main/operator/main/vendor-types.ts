@@ -1,9 +1,9 @@
 /**
- * Vendored legacy types (Task 2 — "Vendor Click Copilot primitives").
+ * Vendored legacy types (Task 2 — "Vendor Computer or Browser Use primitives").
  *
- * These types were COPIED from Click Copilot (`click-copilot/src/shared/types.ts`)
+ * These types were COPIED from Computer or Browser Use (`computer-or-browser-use/src/shared/types.ts`)
  * so the freshly vendored primitives in this folder compile independently while
- * Click Operator evolves its own copies. They are intentionally *local* to the
+ * Computer or Browser Use evolves its own copies. They are intentionally *local* to the
  * vendored main-process modules and are NOT the project's shared data model.
  *
  * The design's real data model — `AutonomyLevel`, `AgentSession`, `Observation`,
@@ -15,9 +15,9 @@
  * → `TrajectorySummary`, `GatewayConfig` → the ProviderChain/ModelProvider
  * models, `GlassError` → `OperatorError`).
  *
- * Reuse rule (Req 19): this file is a one-time vendor of Click Copilot concepts.
- * Nothing here imports from, references, or depends on the `click-copilot`
- * project — Click Operator owns and evolves these copies.
+ * Reuse rule (Req 19): this file is a one-time vendor of Computer or Browser Use concepts.
+ * Nothing here imports from, references, or depends on the `computer-or-browser-use`
+ * project — Computer or Browser Use owns and evolves these copies.
  */
 
 /** A rectangular screen region, in display pixels. */

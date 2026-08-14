@@ -6,7 +6,7 @@ someone else. macOS only.
 ## 1. Run it on my machine (dev)
 
 ```bash
-cd click-copilot
+cd computer-or-browser-use
 npm install
 npm run dev        # launches the app with hot reload
 ```
@@ -44,7 +44,7 @@ Needs Docker via Colima (Docker Desktop is not required):
 brew install colima docker
 colima start
 docker context use colima
-cd operator-docker && docker build -t click-operator-desktop:latest .
+cd operator-docker && docker build -t computer-or-browser-use-desktop:latest .
 ```
 
 "My Mac" operator mode instead needs macOS Screen Recording + Accessibility.
@@ -62,7 +62,7 @@ Share the `.dmg`:
 
 Because the build is unsigned (`electron-builder.yml` has `identity: null`),
 the person must **right-click the app > Open** the first time (or run
-`xattr -cr "/Applications/Click Copilot.app"`). To remove that friction, get an
+`xattr -cr "/Applications/Computer or Browser Use.app"`). To remove that friction, get an
 Apple Developer ID ($99/yr), set a signing identity, and enable notarization in
 `electron-builder.yml`.
 
