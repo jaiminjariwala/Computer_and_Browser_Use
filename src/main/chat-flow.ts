@@ -119,6 +119,8 @@ export interface ChatFlowDeps {
     ai: ChatFlowAI
     emitters: ChatFlowEmitters
     memories?: ChatFlowMemories
+    /** Optional zero-cost deterministic route used before any model request. */
+    localResponder?: (text: string) => string | null
 }
 
 /**
@@ -133,6 +135,7 @@ export class ChatFlow {
     private readonly ai: ChatFlowAI
     private readonly emitters: ChatFlowEmitters
     private readonly memories?: ChatFlowMemories
+    private readonly localResponder?: (text: string) => string | null
     /**
      * Questions currently being processed, keyed by the asking user turn's id.
      * Several may be in flight at once: asking a new question NEVER supersedes
@@ -148,6 +151,7 @@ export class ChatFlow {
         this.ai = deps.ai
         this.emitters = deps.emitters
         this.memories = deps.memories
+        this.localResponder = deps.localResponder
     }
 
     /**
@@ -219,6 +223,15 @@ export class ChatFlow {
         //    includes the just-typed message (Req 3.1). Capture the origin chat
         //    so a slow answer lands here even if the user switches chats.
         const originId = this.originId()
+
+        // The cheapest route is no model call at all. Keep this deliberately
+        // narrow: greetings can be answered locally, while substantive prompts
+        // still go through the authenticated provider/backend path.
+        const localReply = this.localResponder?.(trimmed) ?? null
+        if (localReply) {
+            await this.completeWith(localReply, originId)
+            return
+        }
         const ctx = await this.contextWithMemories()
 
         // 3–5. Run the question as an independently tracked request.

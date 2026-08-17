@@ -53,6 +53,26 @@ function makeCapture(overrides: Partial<TurnCapture> = {}): TurnCapture {
 }
 
 describe('ChatFlow.handleSendMessage — success path (Flow A)', () => {
+    it('uses an injected zero-cost local response before calling a provider', async () => {
+        const session = makeSession()
+        const ai = { complete: vi.fn() }
+        const { emitters } = makeRecorder()
+        const flow = new ChatFlow({
+            session,
+            ai,
+            emitters,
+            localResponder: (text) => text === 'hi' ? 'Hello locally' : null
+        })
+
+        await flow.handleSendMessage('hi')
+
+        expect(ai.complete).not.toHaveBeenCalled()
+        expect(session.getSessionView().turns.map((turn) => turn.text)).toEqual([
+            'hi',
+            'Hello locally'
+        ])
+    })
+
     it('emits user turn, pending true, assistant turn, pending false in order', async () => {
         const session = makeSession()
         const ai = { complete: vi.fn().mockResolvedValue('Click the Add user button.') }
