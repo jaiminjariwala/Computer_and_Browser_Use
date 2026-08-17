@@ -32,6 +32,13 @@ export interface CuratedModels {
     others: ModelOption[]
 }
 
+/** Providers that are actually usable on this Mac right now. */
+export interface ModelAvailability {
+    gateway: boolean
+    openrouter: boolean
+    gemini: boolean
+}
+
 /**
  * Models that cannot take an image (or aren't chat models at all). These would
  * 400 if the user picked them, so we never show them.
@@ -76,7 +83,10 @@ export function friendlyLabel(id: string): string {
  *    (screenshots + PDFs). Includes the free fallback + on-device options.
  *  - Operator mode: computer-use-capable models for the autonomous agent.
  */
-export function defaultRecommended(operatorMode: boolean): ModelOption[] {
+export function defaultRecommended(
+    operatorMode: boolean,
+    availability: ModelAvailability = { gateway: true, openrouter: true, gemini: true }
+): ModelOption[] {
     const rec = (id: string, label: string, sublabel?: string): ModelOption => ({
         id,
         label,
@@ -89,15 +99,25 @@ export function defaultRecommended(operatorMode: boolean): ModelOption[] {
         // judgment (fewer premature completions / off-goal detours) on the
         // same key, at tighter free-tier rate limits.
         return [
-            rec('gemini-2.5-flash', 'Gemini 2.5 Flash', 'free, computer or browser use'),
-            rec('gemini-2.5-pro', 'Gemini 2.5 Pro', 'stronger reasoning, tighter free limits'),
-            rec('openrouter/free', 'OpenRouter Free', 'free, auto-selects')
+            ...(availability.gemini
+                ? [
+                    rec('gemini-2.5-flash', 'Gemini 2.5 Flash', 'free tier, connected'),
+                    rec('gemini-2.5-pro', 'Gemini 2.5 Pro', 'connected')
+                ]
+                : []),
+            ...(availability.openrouter
+                ? [rec('openrouter/free', 'OpenRouter Free', 'connected, auto-selects')]
+                : [])
         ]
     }
     return [
-        rec('gemini-2.5-flash', 'Gemini 2.5 Flash', 'free'),
-        rec('gpt-4o', 'GPT-4o', 'vision'),
-        rec('openrouter/free', 'OpenRouter Free', 'free, auto-selects')
+        ...(availability.gemini
+            ? [rec('gemini-2.5-flash', 'Gemini 2.5 Flash', 'free tier, connected')]
+            : []),
+        ...(availability.gateway ? [rec('gpt-4o', 'GPT-4o', 'connected gateway')] : []),
+        ...(availability.openrouter
+            ? [rec('openrouter/free', 'OpenRouter Free', 'connected, auto-selects')]
+            : [])
     ]
 }
 
@@ -106,8 +126,12 @@ export function defaultRecommended(operatorMode: boolean): ModelOption[] {
  * first, then any additional vision models the gateway actually reports (that
  * aren't already recommended) under "show all". Works fully offline.
  */
-export function curateForMode(operatorMode: boolean, gatewayIds: string[]): CuratedModels {
-    const recommended = defaultRecommended(operatorMode)
+export function curateForMode(
+    operatorMode: boolean,
+    gatewayIds: string[],
+    availability: ModelAvailability = { gateway: true, openrouter: true, gemini: true }
+): CuratedModels {
+    const recommended = defaultRecommended(operatorMode, availability)
     const recIds = new Set(recommended.map((m) => m.id))
     const fromGateway = curateModels(gatewayIds)
     const others = [...fromGateway.recommended, ...fromGateway.others].filter(

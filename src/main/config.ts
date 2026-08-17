@@ -247,12 +247,25 @@ export class ConfigStore {
             openrouter: config.openrouterModel ?? '',
             gemini: config.geminiModel ?? ''
         }
+        const selectedProvider: HostedFallbackId | null = config.model.startsWith('gemini')
+            ? 'gemini'
+            : config.model.startsWith('openrouter')
+                ? 'openrouter'
+                : null
+        const ids = Object.keys(HOSTED_FALLBACKS) as HostedFallbackId[]
+        // The composer selection is a routing decision, not merely a label.
+        // Put the selected hosted provider first; previously OpenRouter always
+        // won whenever both keys existed, even while the UI said "Gemini".
+        const orderedIds = selectedProvider
+            ? [selectedProvider, ...ids.filter((id) => id !== selectedProvider)]
+            : ids
         const out: Array<{ baseURL: string; model: string; apiKey: string }> = []
-        for (const id of Object.keys(HOSTED_FALLBACKS) as HostedFallbackId[]) {
+        for (const id of orderedIds) {
             const key = await this.getHostedKey(id)
             if (!key || key.trim().length === 0) continue
             const meta = HOSTED_FALLBACKS[id]
-            const model = modelFor[id].trim().length > 0 ? modelFor[id].trim() : meta.defaultModel
+            const selectedModel = selectedProvider === id ? config.model.trim() : ''
+            const model = selectedModel || modelFor[id].trim() || meta.defaultModel
             out.push({ baseURL: meta.baseURL, model, apiKey: key })
         }
         return out
@@ -347,7 +360,7 @@ export function registerConfigIpc(deps: ConfigIpcDeps): ConfigStore {
         // added here works in the operator immediately (no restart needed).
         await deps.onSaved?.()
         const status = await store.getStatus()
-        if (!status.hasCredentials) {
+        if (!status.hasCredentials && !status.hasOpenrouter && !status.hasGemini) {
             deps.getSidebarWindow()?.webContents.send('credentials:required')
         }
     })
@@ -365,7 +378,7 @@ export async function emitCredentialsRequiredIfMissing(
     window: BrowserWindow | null | undefined
 ): Promise<void> {
     const status = await store.getStatus()
-    if (!status.hasCredentials) {
+    if (!status.hasCredentials && !status.hasOpenrouter && !status.hasGemini) {
         window?.webContents.send('credentials:required')
     }
 }

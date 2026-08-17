@@ -178,6 +178,22 @@ describe('ConfigStore', () => {
             })
             expect(await store.getApiKey()).toBe('first-key')
         })
+
+        it('routes the composer-selected hosted provider first', async () => {
+            await store.save({
+                baseURL: '',
+                model: 'gemini-2.5-flash',
+                apiKey: '',
+                openrouterApiKey: 'or-key',
+                geminiApiKey: 'gem-key'
+            })
+
+            const providers = await store.getHostedFallbacks()
+            expect(providers.map((provider) => provider.model)).toEqual([
+                'gemini-2.5-flash',
+                'openrouter/free'
+            ])
+        })
     })
 
     describe('getStatus()', () => {
@@ -274,6 +290,17 @@ describe('config IPC', () => {
         registerConfigIpc({ store, getSidebarWindow: () => fakeWindow as never })
         await getHandler('config:save')({}, { baseURL: 'https://gw', model: 'm', apiKey: '' })
         expect(sent).toContain('credentials:required')
+    })
+
+    it('config:save accepts a hosted provider key as a usable connection', async () => {
+        registerConfigIpc({ store, getSidebarWindow: () => fakeWindow as never })
+        await getHandler('config:save')({}, {
+            baseURL: '',
+            model: 'gemini-2.5-flash',
+            apiKey: '',
+            geminiApiKey: 'gem-key'
+        })
+        expect(sent).not.toContain('credentials:required')
     })
 
     it('emitCredentialsRequiredIfMissing notifies only when incomplete', async () => {
