@@ -47,6 +47,8 @@ export interface Observation {
      * input" errors of free vision tiers.
      */
     pageText?: string
+    /** Local-only UI preview; never included in the provider request. */
+    previewDataUrl?: string
     /** false if bounds/scale unknown -> no coordinate Action may execute (Req 2.8). */
     complete: boolean
     capturedAt: string
@@ -123,5 +125,7 @@ export interface TrajectoryStepView {
     action?: Action
     result?: ActionResult
     events?: SafetyEvent[]
+    /** Optional local preview used by the Computer Use picture-in-picture panel. */
+    previewDataUrl?: string
     capturedAt: string
 }

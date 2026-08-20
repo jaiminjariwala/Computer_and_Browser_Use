@@ -4,12 +4,13 @@ import { isBlankGoal } from '../session'
 import { emitError, emitPermissionChanged } from '../ipc'
 import { evaluateOperatorStartGate, emptyGoalError } from '../start-gate'
 import type { OperatorServices } from './services'
+import { deterministicRouteFor } from '../deterministic-reasoning'
 
 /**
  * Open the exact macOS System Settings pane for a permission error, so the user
  * lands right where they can grant it instead of hunting through Settings. In
  * dev the app runs under the Electron binary, so the pane may list it as
- * "Electron" rather than "Click Copilot" — that's the entry to enable.
+ * "Electron" rather than "Computer or Browser Use" — that's the entry to enable.
  */
 function openSettingsForError(error: OperatorError): void {
     const pane =
@@ -68,7 +69,11 @@ export function createStartGoalHandler(
             environment === 'local'
                 ? permissions
                 : ({ screenRecording: 'granted', accessibility: 'granted' } as const)
-        const credentialGate = await configStore.evaluateStartGate()
+        // A narrow deterministic route (currently direct browser navigation)
+        // needs no provider. Everything else still fails closed at this gate.
+        const credentialGate = deterministicRouteFor(input.goal, environment)
+            ? ({ ok: true } as const)
+            : await configStore.evaluateStartGate()
         const hotkeyResult = safety.getHotkeyResult()
         const gate = evaluateOperatorStartGate({
             hotkeyBlocksStart: safety.hotkeyBlocksSessionStart(),

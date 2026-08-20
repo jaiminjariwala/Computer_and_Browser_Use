@@ -138,6 +138,10 @@ export interface OperatorBridge {
     savePlaybook?(input: PlaybookInput): Promise<Playbook[]>
     deletePlaybooks?(ids: string[]): Promise<Playbook[]>
     getPermissions?(): Promise<PermissionSnapshot> // Req 16, 17
+    /** Prompt for Accessibility or open the matching macOS privacy pane. */
+    requestPermission?(kind: 'accessibility' | 'screen-recording'): Promise<PermissionSnapshot>
+    /** Begin a user-driven drag of this .app bundle into macOS System Settings. */
+    startPermissionAppDrag?(): void
 
     // Console -> main : Model_Provider management (Req 21)
     getProviders?(): Promise<ProviderChainView> // Req 21.1, 21.2, 21.10

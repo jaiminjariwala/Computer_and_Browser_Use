@@ -1,4 +1,4 @@
-import { ipcMain, type BrowserWindow } from 'electron'
+import { app, ipcMain, nativeImage, type BrowserWindow, type IpcMainEvent } from 'electron'
 import type {
     AgentSessionView,
     ConfirmActionInput,
@@ -106,6 +106,10 @@ export interface OperatorIpcDeps {
     onDeleteSessions?: (ids: string[]) => void | Promise<void>
     /** `perm:get` — current macOS permission snapshot (Req 16, 17). */
     getPermissions?: () => PermissionSnapshot | Promise<PermissionSnapshot>
+    /** Ask macOS for one local-control permission and return the refreshed state. */
+    onRequestPermission?: (
+        kind: 'accessibility' | 'screen-recording'
+    ) => PermissionSnapshot | Promise<PermissionSnapshot>
     /** `providers:test` — availability + vision models for one provider (Req 21.6, 21.7). */
     onTestProvider?: (id: string) => ProviderStatus | Promise<ProviderStatus>
     /** `help:answer` — the user's free-text answer to a question the agent asked. */
@@ -125,6 +129,7 @@ const CHANNELS = [
     'op:session:open',
     'op:session:delete',
     'op:perm:get',
+    'op:perm:request',
     'op:providers:test',
     'op:help:answer'
 ] as const
@@ -135,6 +140,20 @@ const CHANNELS = [
  * for tests and teardown).
  */
 export function registerOperatorIpc(deps: OperatorIpcDeps): () => void {
+    const onPermissionAppDrag = (event: IpcMainEvent): void => {
+        const executable = app.getPath('exe')
+        const marker = '.app/Contents/MacOS/'
+        const markerIndex = executable.indexOf(marker)
+        if (markerIndex < 0) return
+        const appBundle = executable.slice(0, markerIndex + 4)
+        const icon = nativeImage.createFromDataURL(
+            'data:image/svg+xml;charset=utf-8,' +
+            encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="15" fill="#1683f7"/><path d="M18 34h22l-7-7 4-4 14 14-14 14-4-4 7-7H18z" fill="white"/></svg>')
+        )
+        event.sender.startDrag({ file: appBundle, icon })
+    }
+    ipcMain.on('op:perm:drag-app', onPermissionAppDrag)
+
     ipcMain.handle('op:goal:start', async (_event, input: StartGoalInput): Promise<StartResult> => {
         return (await deps.onStartGoal?.(input)) ?? notWiredStartResult()
     })
@@ -186,6 +205,14 @@ export function registerOperatorIpc(deps: OperatorIpcDeps): () => void {
         return (await deps.getPermissions?.()) ?? UNKNOWN_PERMISSIONS
     })
 
+    ipcMain.handle(
+        'op:perm:request',
+        async (_event, payload: { kind?: 'accessibility' | 'screen-recording' } | undefined): Promise<PermissionSnapshot> => {
+            if (!payload?.kind) return UNKNOWN_PERMISSIONS
+            return (await deps.onRequestPermission?.(payload.kind)) ?? UNKNOWN_PERMISSIONS
+        }
+    )
+
     ipcMain.handle('op:providers:test', async (_event, payload: { id: string } | undefined): Promise<ProviderStatus> => {
         const id = payload?.id ?? ''
         return (
@@ -200,6 +227,7 @@ export function registerOperatorIpc(deps: OperatorIpcDeps): () => void {
     })
 
     return () => {
+        ipcMain.removeListener('op:perm:drag-app', onPermissionAppDrag)
         for (const channel of CHANNELS) {
             ipcMain.removeHandler(channel)
         }

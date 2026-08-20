@@ -1,4 +1,9 @@
+import { shell, systemPreferences } from 'electron'
 import type { ProviderStatus, StartGoalInput, StartResult } from '@op-shared/types'
+import {
+    ACCESSIBILITY_SETTINGS_URL,
+    SCREEN_RECORDING_SETTINGS_URL
+} from '../permissions'
 import { toAgentSessionView } from '../session'
 import { registerConfigIpc } from '../config-ipc'
 import { registerOperatorIpc, emitPermissionChanged, EMPTY_SESSION_VIEW } from '../ipc'
@@ -97,6 +102,22 @@ export function wireOperatorIpc(
             await sessions.deleteSessions(ids)
         },
         getPermissions: () => {
+            const snapshot = readPermissions()
+            emitPermissionChanged(consoleWindow(), snapshot)
+            return snapshot
+        },
+        onRequestPermission: async (kind) => {
+            if (kind === 'accessibility') {
+                const request = (
+                    systemPreferences as unknown as {
+                        isTrustedAccessibilityClient?: (prompt: boolean) => boolean
+                    }
+                ).isTrustedAccessibilityClient
+                if (typeof request === 'function') request.call(systemPreferences, true)
+                else await shell.openExternal(ACCESSIBILITY_SETTINGS_URL)
+            } else {
+                await shell.openExternal(SCREEN_RECORDING_SETTINGS_URL)
+            }
             const snapshot = readPermissions()
             emitPermissionChanged(consoleWindow(), snapshot)
             return snapshot

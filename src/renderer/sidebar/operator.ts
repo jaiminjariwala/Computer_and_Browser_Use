@@ -4,7 +4,8 @@ import { estimateCostUsd, formatCostUsd, formatTokens, hasUsage } from '@op-shar
 import { redactSensitiveText } from './privacy'
 
 /**
- * Pure helpers for rendering merged Click Operator activity inside the Click
+ * Pure helpers for rendering merged Computer or Browser Use activity inside the
+ * Computer or Browser Use interface.
  * Copilot chat.
  *
  * The operator engine streams `TrajectoryStepView`s (one per perceive -> reason
@@ -168,7 +169,7 @@ export interface StepItem {
 export function describeStep(step: TrajectoryStepView): StepItem {
     const meta = formatStepUsage(step) ?? undefined
     if (step.outcome === 'action' && step.action) {
-        const action = describeAction(step.action)
+        const action = describeDeterministicAction(step) ?? describeAction(step.action)
         const status = step.result?.status
         const failed = status !== undefined && status !== 'success'
         return {
@@ -180,7 +181,9 @@ export function describeStep(step: TrajectoryStepView): StepItem {
         }
     }
     if (step.outcome === 'completion') {
-        return { label: 'Task complete', meta, kind: 'completion' }
+        const deterministicSummary =
+            step.providerId === 'deterministic-local' ? sanitizeHelpText(step.rationale) : undefined
+        return { label: deterministicSummary ?? 'Task complete', meta, kind: 'completion' }
     }
     if (step.outcome === 'failure') {
         // A completion claim bounced by the evidence gate is progress-shaped
@@ -210,6 +213,17 @@ export function describeStep(step: TrajectoryStepView): StepItem {
         sub: sanitizeHelpText(step.rationale),
         meta,
         kind: 'help'
+    }
+}
+
+function describeDeterministicAction(step: TrajectoryStepView): string | null {
+    if (step.providerId !== 'deterministic-local' || step.action?.kind !== 'type') return null
+    try {
+        const parsed = new URL(step.action.text)
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+        return `Opened ${parsed.hostname}`
+    } catch {
+        return null
     }
 }
 

@@ -34,6 +34,9 @@ export function toTrajectoryStepView(step: TrajectoryStep): TrajectoryStepView {
     if (step.action !== undefined) view.action = clone(step.action)
     if (step.result !== undefined) view.result = clone(step.result)
     if (step.events !== undefined) view.events = clone(step.events)
+    if (step.observation.previewDataUrl !== undefined) {
+        view.previewDataUrl = step.observation.previewDataUrl
+    }
     return view
 }
 

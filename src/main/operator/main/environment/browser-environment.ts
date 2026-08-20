@@ -301,6 +301,10 @@ export class PlaywrightBrowserEnvironment implements Environment {
                 .evaluate(readPageDigest)
                 .catch(() => ({ title: '', url: '', text: '' }))
             const tabDigest = await this.describeTabs(page)
+            const preview = await page
+                .screenshot({ type: 'jpeg', quality: 55 })
+                .then((bytes) => `data:image/jpeg;base64,${bytes.toString('base64')}`)
+                .catch(() => undefined)
             if (
                 page.isClosed() ||
                 this.activePage() !== page ||
@@ -321,6 +325,7 @@ export class PlaywrightBrowserEnvironment implements Environment {
                 displayBounds: { x: 0, y: 0, width: this.vp.width, height: this.vp.height },
                 scaleFactor: 1,
                 pageText: `${tabDigest}\nTitle: ${digest.title}\nURL: ${minimizePageUrl(digest.url)}\n\n${digest.text}`.trim(),
+                previewDataUrl: preview,
                 complete: true,
                 capturedAt: this.now()
             }

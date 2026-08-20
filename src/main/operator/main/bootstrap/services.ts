@@ -37,9 +37,10 @@ import { Summarizer, summarizeTrajectorySteps } from '../summarizer'
 import { SessionMemory } from '../memory'
 import { createElectronPermissionProbe, getPermissionSnapshot } from '../permissions'
 import { createModelProvider } from '../providers/model-provider'
+import { deterministicBrowserReason } from '../deterministic-reasoning'
 
 /**
- * Service construction for the Click Operator main process (extracted from the
+ * Service construction for the Computer or Browser Use main process (extracted from the
  * `app.whenReady` body so the entry stays a thin orchestrator).
  *
  * ## Wiring topology
@@ -100,10 +101,10 @@ export interface OperatorServices {
 export interface OperatorServiceOptions {
     /**
      * Accessor for the HOST window that receives every main -> renderer operator
-     * event. In the merged Click Copilot build this is the existing Sidebar
+     * event. In the merged Computer or Browser Use build this is the existing Sidebar
      * window, so the operator activity renders inside the copilot chat rather
      * than a separate Console_Window. When omitted, falls back to the operator's
-     * own Console_Window (the standalone Click Operator behavior).
+     * own Console_Window (the standalone Computer or Browser Use behavior).
      */
     getHostWindow?: () => BrowserWindow | null
 }
@@ -122,7 +123,7 @@ export function createOperatorServices(options: OperatorServiceOptions = {}): Op
     const permissionProbe = createElectronPermissionProbe()
     const readPermissions = (): PermissionSnapshot => getPermissionSnapshot(permissionProbe)
 
-    // Operator events target the host (Sidebar) window when merged into Click
+    // Operator events target the host (Sidebar) window when merged into Computer or Browser Use
     // Copilot; otherwise the standalone Console_Window.
     const consoleWindow = (): BrowserWindow | null =>
         options.getHostWindow?.() ?? windows.getConsole()
@@ -202,6 +203,14 @@ export function createOperatorServices(options: OperatorServiceOptions = {}): Op
     // always remain authoritative.
     const reasoning: LoopReasoning = {
         reason: async (ctx: ReasoningContext): Promise<RoutedOutcome> => {
+            // Cheapest/reliability-first route: simple browser navigation is a
+            // local function and must not require or spend an LLM call.
+            const deterministic = deterministicBrowserReason(
+                ctx,
+                sessionManager.getSession()?.environment
+            )
+            if (deterministic) return deterministic
+
             const priorMemories = await memory.recall(
                 ctx.goal,
                 sessionManager.getSession()?.id
