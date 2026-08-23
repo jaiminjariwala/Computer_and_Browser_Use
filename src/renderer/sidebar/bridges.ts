@@ -6,7 +6,9 @@ import type {
     SessionSummary,
     SessionView,
     TurnCapture,
-    TurnView
+    TurnView,
+    WorkspaceContext,
+    TerminalCommandResult
 } from '@shared/types'
 
 /**
@@ -17,6 +19,7 @@ import type {
 
 export interface ChatBridge {
     sendMessage(text: string): Promise<void>
+    recordTaskMessage?(text: string): Promise<void>
     sendCaptures(captures: TurnCapture[], text?: string): Promise<void>
     newSession(): Promise<void>
     getSession(): Promise<SessionView>
@@ -24,6 +27,8 @@ export interface ChatBridge {
     openSession(id: string): Promise<void>
     deleteSessions(ids: string[]): Promise<void>
     listModels(): Promise<string[]>
+    getWorkspaceContext?(): Promise<WorkspaceContext>
+    runTerminalCommand?(command: string): Promise<TerminalCommandResult>
     onTurnAppended(cb: (turn: TurnView) => void): void | (() => void)
     onPending(cb: (pending: boolean) => void): void | (() => void)
     onError(cb: (err: GlassError) => void): void | (() => void)

@@ -43,6 +43,10 @@ describe('createSidebarWindowOptions', () => {
         expect(opts.show).toBe(false)
     })
 
+    it('supports native macOS fullscreen', () => {
+        expect(opts.fullscreenable).toBe(true)
+    })
+
     it('uses the configured default dimensions', () => {
         expect(opts.width).toBe(SIDEBAR_WIDTH)
         expect(opts.height).toBe(SIDEBAR_HEIGHT)

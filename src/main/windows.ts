@@ -59,7 +59,7 @@ export function createSidebarWindowOptions(
         resizable: true,
         // Keep the panel above other windows while shown (Req 2.1).
         alwaysOnTop: true,
-        fullscreenable: false,
+        fullscreenable: true,
         skipTaskbar: false,
         webPreferences: {
             preload: preloadPath,

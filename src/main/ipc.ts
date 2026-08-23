@@ -9,7 +9,9 @@ import type {
     SessionSummary,
     SessionView,
     TurnCapture,
-    TurnView
+    TurnView,
+    WorkspaceContext,
+    TerminalCommandResult
 } from '@shared/types'
 
 /**
@@ -39,6 +41,8 @@ export interface GlassIpcDeps {
     getSidebarWindow: () => WindowRef
     /** `chat:send` — handle a typed message (Req 2.2, 3.1). */
     onSendMessage?: (text: string) => void | Promise<void>
+    /** `chat:record-task` — persist a task routed to the operator engine. */
+    onRecordTaskMessage?: (text: string) => void | Promise<void>
     /** `chat:send-captures` — send staged screenshot captures + optional text. */
     onSendCaptures?: (captures: TurnCapture[], text?: string) => void | Promise<void>
     /** `capture:trigger` — begin a region capture (Req 4.1). */
@@ -73,6 +77,10 @@ export interface GlassIpcDeps {
     onClearMemories?: () => MemoryEntry[] | Promise<MemoryEntry[]>
     /** `mail:read-selected` — read the message selected in Mail or Outlook. */
     onReadSelectedMail?: (source: 'mail' | 'outlook') => MailReadResult | Promise<MailReadResult>
+    /** `workspace:context` — read-only Git/workspace metadata for the inspector. */
+    getWorkspaceContext?: () => WorkspaceContext | Promise<WorkspaceContext>
+    /** `terminal:run` — execute a command explicitly entered in the local terminal. */
+    onRunTerminalCommand?: (command: string) => TerminalCommandResult | Promise<TerminalCommandResult>
 }
 
 const EMPTY_SUMMARY: SessionSummary = {
@@ -95,6 +103,11 @@ export const EMPTY_SESSION_VIEW: SessionView = {
 export function registerGlassIpc(deps: GlassIpcDeps): () => void {
     ipcMain.handle('chat:send', async (_event, payload: { text: string } | undefined): Promise<void> => {
         await deps.onSendMessage?.(payload?.text ?? '')
+    })
+
+    ipcMain.handle('chat:record-task', async (_event, payload: { text: string } | undefined): Promise<void> => {
+        const text = payload?.text?.trim() ?? ''
+        if (text) await deps.onRecordTaskMessage?.(text)
     })
 
     ipcMain.handle(
@@ -148,6 +161,28 @@ export function registerGlassIpc(deps: GlassIpcDeps): () => void {
 
     ipcMain.handle('models:list', async (): Promise<string[]> => {
         return (await deps.onListModels?.()) ?? []
+    })
+    ipcMain.handle('workspace:context', async (): Promise<WorkspaceContext> => {
+        return (
+            (await deps.getWorkspaceContext?.()) ?? {
+                root: '',
+                repositoryName: '',
+                isGitRepository: false,
+                branch: '',
+                additions: 0,
+                deletions: 0,
+                changedFiles: 0,
+                ahead: 0,
+                behind: 0,
+                lastCommit: '',
+                diff: ''
+            }
+        )
+    })
+    ipcMain.handle('terminal:run', async (_event, payload: { command?: string } | undefined): Promise<TerminalCommandResult> => {
+        const command = payload?.command?.trim() ?? ''
+        if (!command) return { command: '', output: '', exitCode: 0, cwd: '' }
+        return (await deps.onRunTerminalCommand?.(command)) ?? { command, output: 'Terminal is unavailable.', exitCode: 1, cwd: '' }
     })
     ipcMain.handle('memory:list', async (): Promise<MemoryEntry[]> => {
         return (await deps.onListMemories?.()) ?? []
@@ -204,6 +239,7 @@ export function registerGlassIpc(deps: GlassIpcDeps): () => void {
     return () => {
         for (const channel of [
             'chat:send',
+            'chat:record-task',
             'chat:send-captures',
             'chat:cancel',
             'capture:trigger',
@@ -215,6 +251,8 @@ export function registerGlassIpc(deps: GlassIpcDeps): () => void {
             'session:open',
             'session:delete',
             'models:list',
+            'workspace:context',
+            'terminal:run',
             'audio:transcribe',
             'memory:list',
             'memory:add',

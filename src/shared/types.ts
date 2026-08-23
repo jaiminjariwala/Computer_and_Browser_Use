@@ -212,11 +212,36 @@ export interface SessionListItem {
     turnCount: number
 }
 
+/** Read-only local repository context shown in the Environment inspector. */
+export interface WorkspaceContext {
+    root: string
+    repositoryName: string
+    isGitRepository: boolean
+    branch: string
+    additions: number
+    deletions: number
+    changedFiles: number
+    ahead: number
+    behind: number
+    lastCommit: string
+    diff: string
+}
+
+/** Result of one command entered in the app's local task terminal. */
+export interface TerminalCommandResult {
+    command: string
+    output: string
+    exitCode: number
+    cwd: string
+}
+
 /** Public GitHub identity shown after a successful Device Flow sign-in. */
 export interface GitHubUserIdentity {
     login: string
     /** Optional display name from the user's GitHub profile. */
     name?: string
+    /** Public profile image used by the account control. */
+    avatarUrl?: string
 }
 
 /** Non-secret renderer view of the GitHub authentication lifecycle. */
@@ -279,6 +304,8 @@ export interface GlassBridge {
     // Sidebar -> main
     /** Send a typed chat message (Req 2.2, 3.1). */
     sendMessage(text: string): Promise<void>
+    /** Persist a user task that is executed by the computer/browser engine. */
+    recordTaskMessage(text: string): Promise<void>
     /**
      * Send one or more staged screenshot captures as a single message, with an
      * optional accompanying text (the screenshot carousel -> Send).
@@ -324,6 +351,10 @@ export interface GlassBridge {
     openGitHubVerification(): Promise<void>
     /** Remove the encrypted GitHub token and local identity state. */
     logoutGitHub(): Promise<void>
+    /** Read current local Git/environment metadata; performs no mutation. */
+    getWorkspaceContext(): Promise<WorkspaceContext>
+    /** Run one explicit command entered by the user in the bottom terminal. */
+    runTerminalCommand(command: string): Promise<TerminalCommandResult>
 
     // main -> Sidebar (event subscriptions; each returns an unsubscribe fn)
     /** GitHub sign-in state changed; access tokens never cross this bridge. */

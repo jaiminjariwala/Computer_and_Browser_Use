@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto'
 import { execFile } from 'child_process'
 import { tmpdir } from 'os'
 import { readFile, unlink } from 'fs/promises'
-import type { TurnCapture } from '@shared/types'
+import type { TerminalCommandResult, TurnCapture, WorkspaceContext } from '@shared/types'
 import {
     registerConfigIpc,
     emitCredentialsRequiredIfMissing,
@@ -12,6 +12,7 @@ import {
     type HostedFallbackId
 } from './config'
 import { registerGitHubAuthIpc } from './github-auth'
+import { zeroCostChatReply } from './local-chat'
 import {
     registerGlassIpc,
     emitError,
@@ -21,8 +22,7 @@ import {
     emitTurnAppended,
     emitSessionState,
     emitSummary,
-    emitCaptureStaged,
-    emitSetupNeeded
+    emitCaptureStaged
 } from './ipc'
 import { HotkeyManager, applyRegistrationResult } from './hotkey'
 import { TrayManager } from './tray'
@@ -37,9 +37,9 @@ import { WindowManager } from './windows'
 import { checkScreenPermission } from './permissions'
 import { CaptureService } from './capture'
 import { CaptureOrchestrator } from './capture-orchestrator'
-// Merged Click Operator engine (autonomous computer-use agent). Vendored under
+// Merged Computer or Browser Use engine (autonomous computer-use agent). Vendored under
 // `./operator` as a self-contained subtree with `op:`-prefixed IPC channels so
-// it never collides with Click Copilot's own services.
+// it never collides with Computer or Browser Use's own services.
 import { createOperatorServices } from './operator/main/bootstrap/services'
 import { createStartGoalHandler } from './operator/main/bootstrap/start-gate-runner'
 import { createPlaybookScheduler, type PlaybookScheduler } from './operator/main/scheduler'
@@ -57,7 +57,7 @@ import { createEmergencyStopManager, type HotkeyManager as OperatorHotkeyManager
 
 // Display name shown in the macOS menu bar / Dock (in dev this is otherwise
 // "Electron"). The packaged app name comes from electron-builder's productName.
-app.setName('Computer or Browser Use and Smart Copilot')
+app.setName('Computer or Browser Use')
 
 let mainWindow: BrowserWindow | null = null
 let hotkeyManager: HotkeyManager | null = null
@@ -66,8 +66,87 @@ let windowManager: WindowManager | null = null
 // Operator engine long-lived singletons (cleanup on quit).
 let operatorHotkey: OperatorHotkeyManager | null = null
 
+function runGit(args: string[]): Promise<string> {
+    return new Promise((resolve, reject) => {
+        execFile('git', args, { cwd: process.cwd(), maxBuffer: 2_000_000 }, (error, stdout) => {
+            if (error) reject(error)
+            else resolve(stdout.trimEnd())
+        })
+    })
+}
+
+async function readWorkspaceContext(): Promise<WorkspaceContext> {
+    const empty: WorkspaceContext = {
+        root: process.cwd(),
+        repositoryName: process.cwd().split('/').pop() ?? '',
+        isGitRepository: false,
+        branch: '',
+        additions: 0,
+        deletions: 0,
+        changedFiles: 0,
+        ahead: 0,
+        behind: 0,
+        lastCommit: '',
+        diff: ''
+    }
+    try {
+        const [root, branch, status, numstat, lastCommit, diff] = await Promise.all([
+            runGit(['rev-parse', '--show-toplevel']),
+            runGit(['branch', '--show-current']),
+            runGit(['status', '--porcelain=v1']),
+            runGit(['diff', '--numstat', 'HEAD']),
+            runGit(['log', '-1', '--pretty=%h · %s']),
+            runGit(['diff', '--no-ext-diff', '--unified=3', 'HEAD'])
+        ])
+        let additions = 0
+        let deletions = 0
+        for (const line of numstat.split('\n')) {
+            const [added, removed] = line.split('\t')
+            if (/^\d+$/.test(added ?? '')) additions += Number(added)
+            if (/^\d+$/.test(removed ?? '')) deletions += Number(removed)
+        }
+        let ahead = 0
+        let behind = 0
+        try {
+            const counts = await runGit(['rev-list', '--left-right', '--count', 'HEAD...@{upstream}'])
+            const [aheadText, behindText] = counts.trim().split(/\s+/)
+            ahead = Number(aheadText) || 0
+            behind = Number(behindText) || 0
+        } catch {
+            // A local branch without an upstream is valid.
+        }
+        return {
+            root,
+            repositoryName: root.split('/').pop() ?? '',
+            isGitRepository: true,
+            branch: branch || 'detached HEAD',
+            additions,
+            deletions,
+            changedFiles: status ? status.split('\n').filter(Boolean).length : 0,
+            ahead,
+            behind,
+            lastCommit,
+            diff: diff.slice(0, 1_500_000)
+        }
+    } catch {
+        return empty
+    }
+}
+
+function runTerminalCommand(command: string): Promise<TerminalCommandResult> {
+    const cwd = process.cwd()
+    return new Promise((resolve) => {
+        execFile('/bin/zsh', ['-lc', command], { cwd, maxBuffer: 2_000_000, timeout: 60_000 }, (error, stdout, stderr) => {
+            const exitCode = typeof (error as NodeJS.ErrnoException & { code?: number } | null)?.code === 'number'
+                ? Number((error as NodeJS.ErrnoException & { code?: number }).code)
+                : error ? 1 : 0
+            resolve({ command, output: `${stdout}${stderr}`.trimEnd(), exitCode, cwd })
+        })
+    })
+}
+
 /**
- * Enforce a single running instance. Click Copilot is a global-hotkey app, so a
+ * Enforce a single running instance. Computer or Browser Use is a global-hotkey app, so a
  * stray second instance (e.g. left over from a dev restart) would grab the
  * Cmd+Shift+D shortcut and pop up its OWN window when you capture. The lock
  * makes any second launch quit immediately and just focus the window we already
@@ -126,7 +205,7 @@ function toggleSidebar(): void {
 function createWindow(): void {
     // Never create a second sidebar: if one already exists, just reveal it.
     // Without this guard an accidental call would orphan the old window,
-    // leaving a stray "extra" Click Copilot window on screen.
+    // leaving a stray "extra" Computer or Browser Use window on screen.
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.show()
         mainWindow.focus()
@@ -150,7 +229,7 @@ function createWindow(): void {
         // other app window and can sit behind others. The user can pin it on top
         // from the header when they want the floating-panel behavior.
         alwaysOnTop: false,
-        fullscreenable: false,
+        fullscreenable: true,
         // Show the app in the macOS Dock like a normal app (skipTaskbar would
         // hide the Dock tile on macOS).
         skipTaskbar: false,
@@ -170,12 +249,25 @@ function createWindow(): void {
         mainWindow?.show()
     })
 
+    if (!app.isPackaged) {
+        mainWindow.webContents.on('did-fail-load', (_event, code, description, url) => {
+            console.error('Sidebar failed to load', { code, description, url })
+        })
+        mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+            if (level >= 2) console.error(`Sidebar console (${sourceId}:${line})`, message)
+        })
+    }
+
     // electron-vite injects ELECTRON_RENDERER_URL during `dev`.
     const devServerUrl = process.env['ELECTRON_RENDERER_URL']
     if (devServerUrl) {
-        mainWindow.loadURL(`${devServerUrl}/sidebar/index.html`)
+        void mainWindow.loadURL(`${devServerUrl}/sidebar/index.html`).catch((error) => {
+            console.error('Could not open sidebar renderer', error)
+        })
     } else {
-        mainWindow.loadFile(join(__dirname, '../renderer/sidebar/index.html'))
+        void mainWindow.loadFile(join(__dirname, '../renderer/sidebar/index.html')).catch((error) => {
+            console.error('Could not open packaged sidebar renderer', error)
+        })
     }
 }
 
@@ -357,6 +449,7 @@ app.whenReady().then(async () => {
             }
         },
         ai: aiClient,
+        localResponder: zeroCostChatReply,
         emitters: {
             turnAppended: (turn) => emitTurnAppended(mainWindow, turn),
             pending: (pending) => emitPending(mainWindow, pending),
@@ -375,11 +468,14 @@ app.whenReady().then(async () => {
                     const anyProviderConfigured =
                         status.hasCredentials || status.hasOpenrouter || status.hasGemini
                     if (!anyProviderConfigured) {
-                        emitSetupNeeded(mainWindow)
+                        await deliverErrorTurn(
+                            originId,
+                            'The managed AI service is not connected in this development build yet. Your GitHub sign-in is separate from model access; connect the app backend before asking a model question.'
+                        )
                     } else {
                         await deliverErrorTurn(
                             originId,
-                            'None of your connected AI providers could answer. Check your keys in Settings and try again.'
+                            'The selected AI provider could not answer. Check its connection in Settings and try again.'
                         )
                     }
                     chatFlow.settleRequest(requestId)
@@ -471,15 +567,35 @@ app.whenReady().then(async () => {
     // and surfaces System Settings instructions via `error:show` (Req 8.1). The
     // overlay closes on a completed selection or cancel (Req 4.3, 4.4); the
     // crop + Flow B wiring lands in tasks 8.2 / 8.3.
+    const requireSignedIn = async (): Promise<void> => {
+        const status = await githubAuth.service.getStatus()
+        if (status.state !== 'signed-in') {
+            throw new Error('Sign in with GitHub before starting a chat.')
+        }
+    }
     registerGlassIpc({
         getSidebarWindow: () => mainWindow,
-        onSendMessage: (text) => chatFlow.handleSendMessage(text),
-        onSendCaptures: (captures, text) => chatFlow.handleCaptures(captures, text),
+        onSendMessage: async (text) => {
+            await requireSignedIn()
+            await chatFlow.handleSendMessage(text)
+        },
+        // Operator work belongs to the same chat timeline. Record the user
+        // message in the normal SessionManager without asking the chat model
+        // to answer it; the renderer already shows the submitted bubble.
+        onRecordTaskMessage: async (text) => {
+            await requireSignedIn()
+            sessionManager.appendUserText(text)
+        },
+        onSendCaptures: async (captures, text) => {
+            await requireSignedIn()
+            await chatFlow.handleCaptures(captures, text)
+        },
         getSession: () => sessionManager.getSessionView(),
         onTriggerCapture: () => {
             void captureViaMacScreenshot('region')
         },
         onSubmitRegion: async (rect, text) => {
+            await requireSignedIn()
             // The user captured a region (incl. an optional follow-up question),
             // so surface the chat to show the incoming guidance.
             showSidebar()
@@ -530,6 +646,8 @@ app.whenReady().then(async () => {
         onClearMemories: () => memoryStore.clear(),
         // Email connector: read the selected Mail/Outlook message on demand.
         onReadSelectedMail: (source) => readSelectedMail(source),
+        getWorkspaceContext: () => readWorkspaceContext(),
+        onRunTerminalCommand: runTerminalCommand,
         onOpenSession: async (id) => {
             const current = sessionManager.getSession()
             // The renderer synthesizes the current in-memory session alongside
@@ -617,11 +735,11 @@ app.whenReady().then(async () => {
     })
 
     // -----------------------------------------------------------------------
-    // Merged Click Operator engine
+    // Merged Computer or Browser Use engine
     // -----------------------------------------------------------------------
     // Construct + wire the autonomous operator engine. Every main -> renderer
     // operator event targets the existing Sidebar window (getHostWindow), so
-    // the operator's live activity renders inside the Click Copilot chat rather
+    // the operator's live activity renders inside the Computer or Browser Use chat rather
     // than a separate Console_Window. The engine owns its own (isolated)
     // provider config + session store and drives the Control_Indicator overlay
     // and the sandboxed-desktop noVNC view through its own Window Manager.
@@ -659,7 +777,7 @@ app.whenReady().then(async () => {
     })
     playbookScheduler.start()
 
-    // Seed the operator's (isolated) provider chain from Click Copilot's stored
+    // Seed the operator's (isolated) provider chain from Computer or Browser Use's stored
     // credentials, so the operator runs on whatever the user already configured
     // with no separate operator setup. Re-seeded every launch. The chain is the
     // user's primary OpenAI-compatible provider, then the same free hosted

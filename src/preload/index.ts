@@ -14,7 +14,9 @@ import type {
     SessionSummary,
     SessionView,
     TurnCapture,
-    TurnView
+    TurnView,
+    WorkspaceContext,
+    TerminalCommandResult
 } from '@shared/types'
 
 /**
@@ -46,6 +48,8 @@ const bridge: GlassBridge = {
 
     // Sidebar -> main
     sendMessage: (text: string): Promise<void> => ipcRenderer.invoke('chat:send', { text }),
+    recordTaskMessage: (text: string): Promise<void> =>
+        ipcRenderer.invoke('chat:record-task', { text }),
     sendCaptures: (captures: TurnCapture[], text?: string): Promise<void> =>
         ipcRenderer.invoke('chat:send-captures', { captures, text }),
     triggerCapture: (): Promise<void> => ipcRenderer.invoke('capture:trigger'),
@@ -76,6 +80,9 @@ const bridge: GlassBridge = {
     logoutGitHub: (): Promise<void> => ipcRenderer.invoke('github-auth:logout'),
     openGitHubVerification: (): Promise<void> =>
         ipcRenderer.invoke('github-auth:open-verification'),
+    getWorkspaceContext: (): Promise<WorkspaceContext> => ipcRenderer.invoke('workspace:context'),
+    runTerminalCommand: (command: string): Promise<TerminalCommandResult> =>
+        ipcRenderer.invoke('terminal:run', { command }),
 
     // main -> Sidebar (event subscriptions)
     onGitHubAuthChanged: (cb: (status: GitHubAuthStatus) => void): (() => void) =>
@@ -110,11 +117,11 @@ const bridge: GlassBridge = {
 contextBridge.exposeInMainWorld('glass', bridge)
 
 // ---------------------------------------------------------------------------
-// Operator bridge (merged Click Operator engine) — window.operator
+// Operator bridge (merged Computer or Browser Use engine) — window.operator
 // ---------------------------------------------------------------------------
 //
 // The autonomous operator engine is vendored into `src/main/operator` and wired
-// through its own `op:`-prefixed IPC channels so it never collides with Click
+// through its own `op:`-prefixed IPC channels so it never collides with Computer or Browser Use
 // Copilot's own `glass` channels. This bridge is the ONLY path from the sandbox
 // renderer to those channels: renderers can start/steer a task and subscribe to
 // its activity, but capture, reasoning, and input synthesis have no channel
@@ -163,6 +170,9 @@ const operatorBridge: OperatorBridge = {
     getConfigStatus: () => ipcRenderer.invoke('op:config:get-status'),
     saveConfig: (cfg): Promise<void> => ipcRenderer.invoke('op:config:save', cfg),
     getPermissions: (): Promise<PermissionSnapshot> => ipcRenderer.invoke('op:perm:get'),
+    requestPermission: (kind): Promise<PermissionSnapshot> =>
+        ipcRenderer.invoke('op:perm:request', { kind }),
+    startPermissionAppDrag: (): void => ipcRenderer.send('op:perm:drag-app'),
 
     // Model_Provider management
     getProviders: (): Promise<ProviderChainView> => ipcRenderer.invoke('op:providers:get'),
