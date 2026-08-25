@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { GlassError, SessionListItem, SessionSummary, SessionView, TurnCapture, TurnView } from '@shared/types'
+import type { ConfigStatus, GitHubAuthStatus, GlassError, SessionListItem, SessionSummary, SessionView, TurnCapture, TurnView, WorkspaceContext } from '@shared/types'
 import type { ConfirmationRequest, LoopStateView, Playbook } from '@op-shared/types'
 import type { SelectedEmail } from '@shared/types'
 import { Settings } from './Settings'
@@ -20,9 +20,8 @@ import {
     type StepItem
 } from './operator'
 import { renderPdfToImages } from './pdf'
-import { curateForMode, friendlyLabel, type CuratedModels } from './models'
+import { curateForMode, friendlyLabel, type CuratedModels, type ModelAvailability } from './models'
 import { routeIntent } from './intentRouter'
-import { SetupCard } from './SetupCard'
 import { VoiceBars } from '../voice-lib'
 import { useSmoothDictation as useDictation } from '../voice-lib-v2'
 import {
@@ -64,6 +63,15 @@ import {
     titleFromTurns
 } from './rail'
 import { HeaderSelect } from './HeaderSelect'
+import { PermissionOnboarding } from './PermissionOnboarding'
+import { EnvironmentMenu, type EnvironmentSource } from './EnvironmentMenu'
+import { InspectorPanel, type InspectorArtifact } from './InspectorPanel'
+import { WorkspaceBar } from './WorkspaceBar'
+import { TerminalPanel } from './TerminalPanel'
+import { ConversationMinimap } from './ConversationMinimap'
+import {
+    TaskActivityCard,
+} from './TaskActivity'
 
 /**
  * Sidebar shell + chat UI.
@@ -72,27 +80,78 @@ import { HeaderSelect } from './HeaderSelect'
  * rendered as Markdown. The header exposes History, New, and Settings panels.
  */
 
+function modelAvailability(status: ConfigStatus | null): ModelAvailability {
+    return {
+        gateway: status?.hasCredentials ?? false,
+        openrouter: status?.hasOpenrouter ?? false,
+        gemini: status?.hasGemini ?? false
+    }
+}
+
+function usableSelectedModel(status: ConfigStatus): string {
+    const selected = status.model.trim()
+    if (selected.startsWith('gemini') && status.hasGemini) return selected
+    if (selected.startsWith('openrouter') && status.hasOpenrouter) return selected
+    if (selected && status.hasCredentials) return selected
+    if (status.hasGemini) return status.geminiModel || 'gemini-2.5-flash'
+    if (status.hasOpenrouter) return status.openrouterModel || 'openrouter/free'
+    return ''
+}
+
+const ENVIRONMENT_COMPACT_BREAKPOINT = 1050
+
 export function App(): React.JSX.Element {
     const [state, setState] = useState<ConversationState>(() => initialConversationState())
     const [draft, setDraft] = useState('')
     const [showSettings, setShowSettings] = useState(false)
     // The code artifact shown in the right-hand panel (Claude-style), or null.
     const [codeArtifact, setCodeArtifact] = useState<CodeArtifact | null>(null)
+    const [inspectorArtifact, setInspectorArtifact] = useState<InspectorArtifact | null>(null)
+    const [rightPanelOpen, setRightPanelOpen] = useState(() =>
+        typeof window !== 'undefined'
+            ? window.innerWidth > ENVIRONMENT_COMPACT_BREAKPOINT
+            : true
+    )
+    const [terminalOpen, setTerminalOpen] = useState(false)
     // User-draggable width of the right code panel (persists while open).
-    const [codePanelWidth, setCodePanelWidth] = useState(480)
+    const [codePanelWidth, setCodePanelWidth] = useState(() =>
+        Math.min(820, Math.max(480, Math.round(window.innerWidth * 0.48)))
+    )
     // Set while the on-device model downloads on first use (one-time), so the
     // wait shows a friendly status instead of looking like a hang.
-    // True when a question arrived but NO AI provider is configured; renders
-    // the in-chat key setup card. Cleared on the next submit (main re-emits if
-    // still unconfigured) and by the card itself once a key is saved.
-    const [needsSetup, setNeedsSetup] = useState(false)
-    const codePanelApi = useRef({ open: (a: CodeArtifact) => setCodeArtifact(a) }).current
+    const [authStatus, setAuthStatus] = useState<GitHubAuthStatus | null>(null)
+    const [configStatus, setConfigStatus] = useState<ConfigStatus | null>(null)
+    const codePanelApi = useRef({ open: (a: CodeArtifact) => {
+        setInspectorArtifact(null)
+        setCodeArtifact(a)
+    } }).current
     // Tracks the last copilot answer we auto-opened, so a fresh answer with code
     // opens the panel exactly once (clicking a pill re-opens it thereafter).
     const lastAutoOpenedTurnRef = useRef<string | null>(null)
     const [navOpen, setNavOpen] = useState(() =>
         typeof window !== 'undefined' ? window.innerWidth > NAV_OVERLAY_BREAKPOINT : true
     )
+    const [navWidth, setNavWidth] = useState(() => {
+        const saved = Number(localStorage.getItem('chat-sidebar-width'))
+        return Number.isFinite(saved) && saved >= 230 && saved <= 420 ? saved : 296
+    })
+
+    // This is deliberately task-scoped. Never point the product UI at this
+    // application's own development repository: Changes is populated only by
+    // files an agent task explicitly records as generated or edited.
+    const taskWorkspaceContext: WorkspaceContext = {
+        root: '',
+        repositoryName: 'Task workspace',
+        isGitRepository: false,
+        branch: 'main',
+        additions: 0,
+        deletions: 0,
+        changedFiles: 0,
+        ahead: 0,
+        behind: 0,
+        lastCommit: '',
+        diff: ''
+    }
     const [history, setHistory] = useState<SessionListItem[]>([])
     const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null)
     const [summary, setSummary] = useState<SessionSummary | null>(null)
@@ -100,10 +159,11 @@ export function App(): React.JSX.Element {
     const [curated, setCurated] = useState<CuratedModels>({ recommended: [], others: [] })
     const [showModels, setShowModels] = useState(false)
     const [showAllModels, setShowAllModels] = useState(false)
-    // Operator controls (merged from Click Operator): where the agent acts, how
+    // Operator controls (merged from Computer or Browser Use): where the agent acts, how
     // much it may do on its own, and its step cap. Wired to the operator engine
     // in a later stage; here they own the header UI next to New/Instructions/Settings.
-    const [operatorMode, setOperatorMode] = useState(false)
+    // Computer/Browser Use is an internal capability, never a separate user mode.
+    const operatorMode = false
     const [opEnvironment, setOpEnvironment] = useState<'browser' | 'container-desktop' | 'local'>('browser')
     const [opAutonomy, setOpAutonomy] = useState<'manual' | 'supervised' | 'autonomous'>('autonomous')
 
@@ -112,6 +172,15 @@ export function App(): React.JSX.Element {
     // DOM (api) or raw pixels (vision).
     const [opActiveProvider, setOpActiveProvider] = useState<string | null>(null)
     const [opActiveMode, setOpActiveMode] = useState<'api' | 'vision' | null>(null)
+    const [visionSources, setVisionSources] = useState<EnvironmentSource[]>([])
+    const [computerUseSessionIds, setComputerUseSessionIds] = useState<Set<string>>(() => {
+        try {
+            const ids = JSON.parse(localStorage.getItem('computer-use-session-ids') ?? '[]')
+            return new Set(Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [])
+        } catch {
+            return new Set()
+        }
+    })
     // Track the active chat/task independently so switching modes preserves the
     // selected row in each history rail.
     const [chatSessionId, setChatSessionId] = useState<string | null>(null)
@@ -131,6 +200,21 @@ export function App(): React.JSX.Element {
     // The operator's pending confirmation request (Manual/Supervised autonomy),
     // rendered inline in the conversation with Approve/Decline.
     const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null)
+    // A local goal waits here only while macOS permissions are being granted.
+    // There is no generic up-front plan: live rows arrive from real engine events.
+    const [permissionQueuedGoal, setPermissionQueuedGoal] = useState<{
+        goal: string
+        environment: 'browser' | 'container-desktop' | 'local'
+        autonomy: 'manual' | 'supervised' | 'autonomous'
+        stepBudget: number
+    } | null>(null)
+    const [opLoopState, setOpLoopState] = useState<LoopStateView['state']>('idle')
+    const [permissions, setPermissions] = useState<import('@op-shared/types').PermissionSnapshot>({
+        accessibility: 'not-determined',
+        screenRecording: 'not-determined'
+    })
+    const [showPermissionOnboarding, setShowPermissionOnboarding] = useState(false)
+    const [permissionBusyKind, setPermissionBusyKind] = useState<'accessibility' | 'screen-recording' | null>(null)
     // Screenshots captured with Cmd+Shift+D land here first (a horizontal
     // carousel above the composer) instead of being sent immediately, so the
     // user can stack several and send them together.
@@ -181,6 +265,30 @@ export function App(): React.JSX.Element {
         }
         stagedRef.current = []
     }, [])
+
+    useEffect(() => {
+        localStorage.setItem('chat-sidebar-width', String(navWidth))
+    }, [navWidth])
+
+    const beginNavResize = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+        if (window.innerWidth <= NAV_OVERLAY_BREAKPOINT) return
+        event.preventDefault()
+        const startX = event.clientX
+        const startWidth = navWidth
+        document.body.classList.add('is-resizing-nav')
+
+        const onMove = (moveEvent: PointerEvent): void => {
+            const nextWidth = Math.min(420, Math.max(230, startWidth + moveEvent.clientX - startX))
+            setNavWidth(Math.round(nextWidth))
+        }
+        const onUp = (): void => {
+            document.body.classList.remove('is-resizing-nav')
+            window.removeEventListener('pointermove', onMove)
+            window.removeEventListener('pointerup', onUp)
+        }
+        window.addEventListener('pointermove', onMove)
+        window.addEventListener('pointerup', onUp)
+    }, [navWidth])
 
     // Single dictation engine: Whisper base (WebGPU). The faster Moonshine
     // variant was dropped — it hallucinated too often to trust.
@@ -255,9 +363,9 @@ export function App(): React.JSX.Element {
                     }
                 ])
             ),
-            // No provider configured at all: show the in-chat key setup card so
-            // the user can paste a free key without hunting through Settings.
-            bridge.onSetupNeeded?.(() => setNeedsSetup(true)),
+            // Missing model access is surfaced as an ordinary assistant error
+            // turn. End users are never asked to paste provider secrets inline.
+            bridge.onSetupNeeded?.(() => undefined),
             // Per-question thinking state: each in-flight question shows its own
             // indicator (+ Cancel) under the exact message that asked it.
             bridge.onRequestStarted?.((requestId) =>
@@ -292,23 +400,11 @@ export function App(): React.JSX.Element {
         const op = getOperatorBridge()
         if (!op) return
 
-        // Restore the current operator task into the rail and checklist on
-        // launch. Acting never resumes automatically; this is display state.
-        void op
-            .getSession?.()
-            .then((view) => {
-                if (!view.id || !view.goalText.trim()) return
-                setOpSessionId(view.id)
-                setOpState(initialConversationState(operatorViewToTurns(view)))
-                setOpSteps(operatorViewToSteps(view))
-            })
-            .catch(() => undefined)
-
-        // Operator activity flows into the SEPARATE operator conversation
-        // (opState), never the copilot chat.
+        // Operator activity is attached to the normal chat. The privileged
+        // engine remains isolated internally, but there is no separate mode.
         const appendAssistant = (text: string): void => {
             const turn = makeTextTurn('assistant', text)
-            if (turn) setOpState((s) => appendTurn(s, turn))
+            if (turn) setState((s) => appendTurn(s, turn))
         }
 
         const unsubscribers: Array<void | (() => void)> = [
@@ -316,35 +412,51 @@ export function App(): React.JSX.Element {
                 // Each step becomes a row in the live checklist (not a bubble).
                 const item = describeStep(step)
                 setOpSteps((prev) => [...prev, { id: `${step.index}-${prev.length}`, ...item }])
+                if (step.previewDataUrl) {
+                    if (step.result?.mode === 'vision') {
+                        const sourceId = `vision-${step.index}`
+                        setVisionSources((current) => current.some((source) => source.id === sourceId)
+                            ? current
+                            : [{
+                                id: sourceId,
+                                name: `Vision screenshot ${current.length + 1}`,
+                                thumbnailUrl: step.previewDataUrl,
+                                detail: `Captured during Computer or Browser Use step ${step.index}`
+                            }, ...current])
+                    }
+                }
                 // Live status pill: which provider served this step (so a
                 // fallback shows in real time) + whether it acted via the DOM
                 // (api) or raw pixels (vision).
                 if (step.providerId) setOpActiveProvider(step.providerId)
                 if (step.result?.mode) setOpActiveMode(step.result.mode)
                 if (step.outcome === 'completion' || step.outcome === 'failure') {
-                    setOpState((s) => setPending(s, false))
+                    setState((s) => setPending(s, false))
                 }
             }),
             op.onStateChanged?.((view: LoopStateView) => {
                 if (view.sessionId) setOpSessionId(view.sessionId)
-                setOpState((s) => setPending(s, isBusyState(view.state)))
+                setOpLoopState(view.state)
+                setState((s) => setPending(s, isBusyState(view.state)))
                 if (isTerminalState(view.state)) {
                     setConfirmation(null)
                 }
             }),
             op.onConfirmationRequired?.((req) => {
                 setConfirmation(req)
-                setOpState((s) => setPending(s, false))
+                setOpLoopState('awaiting-confirmation')
+                setState((s) => setPending(s, false))
             }),
             op.onHelpRequired?.((question) => {
                 appendAssistant(
                     sanitizeHelpText(question) ?? 'The agent needs more information to continue.'
                 )
-                setOpState((s) => setPending(s, false))
+                setState((s) => setPending(s, false))
             }),
             op.onError?.((err) => {
-                setOpState((s) => setError(s, { kind: 'render-failed', message: err.message, recoverable: true }))
-            })
+                setState((s) => setError(s, { kind: 'render-failed', message: err.message, recoverable: true }))
+            }),
+            op.onPermissionChanged?.((snapshot) => setPermissions(snapshot))
         ]
 
         return () => {
@@ -363,10 +475,7 @@ export function App(): React.JSX.Element {
         state.turns,
         state.pending,
         state.error,
-        opState.turns,
-        opState.pending,
-        opState.error,
-        operatorMode
+        opSteps
     ])
 
     // Auto-open the newest copilot answer's code in the right-hand panel the
@@ -417,6 +526,22 @@ export function App(): React.JSX.Element {
         return () => window.removeEventListener('resize', onResize)
     }, [])
 
+    // The floating Environment card should never cover the conversation just
+    // because a window was opened or resized compactly. Hide it on entry into
+    // the compact range; an explicit toolbar click can still reopen it, and CSS
+    // then reserves a lane beside the card instead of allowing overlap.
+    useEffect(() => {
+        let wasCompact = window.innerWidth <= ENVIRONMENT_COMPACT_BREAKPOINT
+        const onResize = (): void => {
+            const compact = window.innerWidth <= ENVIRONMENT_COMPACT_BREAKPOINT
+            if (compact === wasCompact) return
+            wasCompact = compact
+            setRightPanelOpen(!compact)
+        }
+        window.addEventListener('resize', onResize)
+        return () => window.removeEventListener('resize', onResize)
+    }, [])
+
     // Load the currently configured model + gateway base URL for the picker.
     useEffect(() => {
         const cb = getConfigBridge()
@@ -424,7 +549,8 @@ export function App(): React.JSX.Element {
         void cb
             .getConfigStatus()
             .then((s) => {
-                setCurrentModel(s.model)
+                setConfigStatus(s)
+                setCurrentModel(usableSelectedModel(s))
                 baseURLRef.current = s.baseURL
             })
             .catch(() => undefined)
@@ -432,19 +558,26 @@ export function App(): React.JSX.Element {
 
     const openModels = useCallback(() => {
         setShowModels((v) => !v)
-        // Always show task-appropriate recommended models (works offline, even
-        // when the gateway key is down); merge in any live gateway models under
-        // "show all". Copilot -> vision/step-guidance models; Operator ->
-        // computer-use models.
-        setCurated(curateForMode(operatorMode, []))
-        const bridge = getChatBridge()
-        if (bridge && typeof bridge.listModels === 'function') {
-            void bridge
-                .listModels()
-                .then((list) => setCurated(curateForMode(operatorMode, list)))
-                .catch(() => setCurated(curateForMode(operatorMode, [])))
-        }
-    }, [operatorMode])
+        // Only advertise models backed by a credential that is actually
+        // available. The old offline defaults made "Gemini" look connected
+        // even when the Mac had no Gemini key at all.
+        setCurated(curateForMode(operatorMode, [], modelAvailability(configStatus)))
+        const configBridge = getConfigBridge()
+        const chatBridge = getChatBridge()
+        const statusPromise = configBridge
+            ? configBridge.getConfigStatus().catch(() => configStatus)
+            : Promise.resolve(configStatus)
+        const modelsPromise = chatBridge && typeof chatBridge.listModels === 'function'
+            ? chatBridge.listModels().catch(() => [])
+            : Promise.resolve([] as string[])
+        void Promise.all([statusPromise, modelsPromise]).then(([status, list]) => {
+            if (status) {
+                setConfigStatus(status)
+                setCurrentModel(usableSelectedModel(status))
+            }
+            setCurated(curateForMode(operatorMode, list, modelAvailability(status)))
+        })
+    }, [operatorMode, configStatus])
 
     const selectModel = useCallback((m: string) => {
         setCurrentModel(m)
@@ -480,7 +613,13 @@ export function App(): React.JSX.Element {
         if (cb) {
             // Persist via saveConfig; empty apiKey keeps the stored key.
             void cb
-                .saveConfig({ baseURL: baseURLRef.current, model: m, apiKey: '' })
+                .saveConfig({
+                    baseURL: baseURLRef.current,
+                    model: m,
+                    apiKey: '',
+                    ...(m.startsWith('gemini') ? { geminiModel: m } : {}),
+                    ...(m.startsWith('openrouter') ? { openrouterModel: m } : {})
+                })
                 .catch(() => undefined)
         }
     }, [operatorMode])
@@ -496,26 +635,29 @@ export function App(): React.JSX.Element {
             // not have re-rendered yet when a run starts, so explicit
             // overrides beat possibly-stale state.
             overrides?: { autonomy?: 'manual' | 'supervised' | 'autonomous'; stepBudget?: number }
-        ) => {
+        ): Promise<boolean> => {
             setOpSessionId(null)
             // A submitted goal consumes the "New task" draft: the real task
             // takes over its place in the rail.
             setOpDraft(false)
-            setOpState((s) => addUserMessage(s, goal).state)
+            setState((s) => addUserMessage(s, goal).state)
+            // The task is rendered immediately for a responsive UI, while the
+            // main process records the same message in the unified chat store.
+            void getChatBridge()?.recordTaskMessage?.(goal).catch(() => undefined)
             setOpSteps([]) // fresh checklist for the new run
             const op = getOperatorBridge()
             if (!op || typeof op.startGoal !== 'function') {
-                setOpState((s) =>
+                setState((s) =>
                     setError(s, {
                         kind: 'render-failed',
                         message: 'Computer or Browser Use is not connected yet. Your goal was kept.',
                         recoverable: true
                     })
                 )
-                return
+                return Promise.resolve(false)
             }
-            setOpState((s) => setPending(s, true))
-            void op
+            setState((s) => setPending(s, true))
+            return op
                 .startGoal({
                     goal,
                     autonomy: overrides?.autonomy ?? opAutonomy,
@@ -525,22 +667,73 @@ export function App(): React.JSX.Element {
                 })
                 .then((result) => {
                     if (!result.ok) {
-                        setOpState((s) => setPending(s, false))
-                        setOpState((s) =>
+                        setState((s) => setPending(s, false))
+                        setState((s) =>
                             setError(s, { kind: 'render-failed', message: result.error.message, recoverable: true })
                         )
-                        return
+                        return false
                     }
                     setOpSessionId(result.sessionId)
+                    return true
                 })
                 .catch((err: unknown) => {
-                    setOpState((s) => setPending(s, false))
+                    setState((s) => setPending(s, false))
                     const message = err instanceof Error ? err.message : 'Failed to start the task.'
-                    setOpState((s) => setError(s, { kind: 'render-failed', message, recoverable: true }))
+                    setState((s) => setError(s, { kind: 'render-failed', message, recoverable: true }))
+                    return false
                 })
         },
         [opAutonomy, opStepBudget]
     )
+
+    const beginOperatorGoal = useCallback(
+        (
+            goal: string,
+            environment: 'browser' | 'container-desktop' | 'local',
+            overrides?: { autonomy?: 'manual' | 'supervised' | 'autonomous'; stepBudget?: number }
+        ) => {
+            const autonomy = overrides?.autonomy ?? opAutonomy
+            const stepBudget = overrides?.stepBudget ?? Math.max(1, Number.parseInt(opStepBudget, 10) || 25)
+            setOpLoopState('idle')
+            void (async () => {
+                if (environment === 'local') {
+                    const snapshot = await getOperatorBridge()?.getPermissions?.().catch(() => null)
+                    if (snapshot) setPermissions(snapshot)
+                    if (
+                        !snapshot ||
+                        snapshot.accessibility !== 'granted' ||
+                        snapshot.screenRecording !== 'granted'
+                    ) {
+                        setPermissionQueuedGoal({ goal, environment, autonomy, stepBudget })
+                        setShowPermissionOnboarding(true)
+                        return
+                    }
+                }
+                void runOperatorGoal(goal, environment, { autonomy, stepBudget })
+            })()
+        },
+        [opAutonomy, opStepBudget, runOperatorGoal]
+    )
+
+    const requestOperatorPermission = useCallback((kind: 'accessibility' | 'screen-recording') => {
+        const op = getOperatorBridge()
+        if (!op?.requestPermission) return
+        setPermissionBusyKind(kind)
+        void op.requestPermission(kind)
+            .then(setPermissions)
+            .catch(() => undefined)
+            .finally(() => setPermissionBusyKind(null))
+    }, [])
+
+    useEffect(() => {
+        if (!showPermissionOnboarding) return
+        const refresh = (): void => {
+            void getOperatorBridge()?.getPermissions?.().then(setPermissions).catch(() => undefined)
+        }
+        refresh()
+        const timer = window.setInterval(refresh, 1500)
+        return () => window.clearInterval(timer)
+    }, [showPermissionOnboarding])
 
     // ---- Playbooks: list / run / save / delete --------------------------
     const refreshPlaybooks = useCallback(() => {
@@ -559,12 +752,12 @@ export function App(): React.JSX.Element {
             setOpAutonomy(pb.autonomy)
             setOpStepBudget(String(pb.stepBudget))
             setOpEnvironment(pb.environment)
-            runOperatorGoal(pb.goal, pb.environment, {
+            beginOperatorGoal(pb.goal, pb.environment, {
                 autonomy: pb.autonomy,
                 stepBudget: pb.stepBudget
             })
         },
-        [runOperatorGoal]
+        [beginOperatorGoal]
     )
     const saveDraftAsPlaybook = useCallback(() => {
         const goal = draft.trim()
@@ -637,10 +830,27 @@ export function App(): React.JSX.Element {
             .finally(() => setMailBusy(false))
     }, [mailBusy])
 
+    const markComputerUseForCurrentChat = useCallback(() => {
+        if (!chatSessionId) return
+        setComputerUseSessionIds((previous) => {
+            const next = new Set(previous)
+            next.add(chatSessionId)
+            localStorage.setItem('computer-use-session-ids', JSON.stringify([...next]))
+            return next
+        })
+    }, [chatSessionId])
+
     const submit = useCallback(() => {
-        // A fresh ask retracts the setup card; main re-emits it if keys are
-        // still missing, and after a successful connect it stays gone.
-        setNeedsSetup(false)
+        if (authStatus?.state !== 'signed-in') {
+            setState((current) =>
+                setError(current, {
+                    kind: 'render-failed',
+                    message: 'Sign in with GitHub from the lower-left account button before starting a chat.',
+                    recoverable: true
+                })
+            )
+            return
+        }
         const isPreparingAttachment = staged.some((attachment) => attachment.status === 'processing')
         if (isPreparingAttachment) {
             setState((current) =>
@@ -656,7 +866,7 @@ export function App(): React.JSX.Element {
         const captures = staged.flatMap((attachment) => attachment.captures)
         const hasCaptures = captures.length > 0
         // A staged email counts as content in copilot mode (like attachments).
-        const emailStaged = !operatorMode && stagedEmail !== null
+        const emailStaged = stagedEmail !== null
         // Images, PDFs, and sampled videos can be sent without typed text.
         if (!isSubmittable(draft) && !hasCaptures && !emailStaged) {
             return
@@ -695,23 +905,13 @@ export function App(): React.JSX.Element {
             return
         }
 
-        // Operator mode (chosen explicitly): the message is a Goal for the
-        // autonomous engine in the currently-selected environment.
-        if (operatorMode) {
-            runOperatorGoal(text, opEnvironment)
-            return
-        }
-
-        // Copilot mode: auto-route. A "do this for me" command (open/play/turn
-        // on ...) is handed to the OPERATOR — switching the UI to operator and
-        // picking the environment (web vs Mac) from the prompt — while a
-        // question / advice request stays in copilot. This is what lets the user
-        // just type naturally and land in the right mode.
+        // One chat, automatic capability routing. Commands are handed to the
+        // operator internally; questions remain normal model conversation.
         const routed = routeIntent(text, false)
         if (routed.mode === 'operator') {
-            setOperatorMode(true)
             setOpEnvironment(routed.environment)
-            runOperatorGoal(text, routed.environment)
+            markComputerUseForCurrentChat()
+            beginOperatorGoal(text, routed.environment)
             return
         }
 
@@ -732,7 +932,7 @@ export function App(): React.JSX.Element {
             const message = err instanceof Error ? err.message : 'Failed to send your message.'
             setState((s) => setError(s, { kind: 'render-failed', message, recoverable: true }))
         })
-    }, [draft, staged, stagedEmail, operatorMode, opEnvironment, runOperatorGoal, dictation, cancelActive])
+    }, [authStatus, draft, staged, stagedEmail, beginOperatorGoal, dictation, cancelActive, markComputerUseForCurrentChat])
 
     /** Remove one local attachment before sending. */
     const removeStaged = useCallback((id: string) => {
@@ -897,7 +1097,10 @@ export function App(): React.JSX.Element {
             if (req) {
                 const op = getOperatorBridge()
                 void op?.confirmAction?.({ stepId: req.stepId, approved })
-                if (approved) setOpState((s) => setPending(s, true))
+                if (approved) {
+                    setOpLoopState('acting')
+                    setOpState((s) => setPending(s, true))
+                }
             }
             return null
         })
@@ -976,8 +1179,9 @@ export function App(): React.JSX.Element {
     const onCancelOperator = useCallback(() => {
         const op = getOperatorBridge()
         void op?.stopSession?.().catch(() => undefined)
-        setOpState((s) => setPending(s, false))
+        setState((s) => setPending(s, false))
         setConfirmation(null)
+        setOpLoopState('stopped')
     }, [])
 
     const onNewSession = useCallback(() => {
@@ -985,7 +1189,16 @@ export function App(): React.JSX.Element {
         // and close the right-hand code panel.
         setShowSettings(false)
         setCodeArtifact(null)
+        setInspectorArtifact(null)
+        setRightPanelOpen(true)
         lastAutoOpenedTurnRef.current = null
+        void getOperatorBridge()?.stopSession?.().catch(() => undefined)
+        setOpSteps([])
+        setConfirmation(null)
+        setOpLoopState('idle')
+        setOpActiveProvider(null)
+        setOpActiveMode(null)
+        setVisionSources([])
         // Operator mode: clear the operator workspace (hide, not delete) and stop
         // any running task so the next goal starts fresh.
         if (operatorMode) {
@@ -993,6 +1206,9 @@ export function App(): React.JSX.Element {
             void op?.stopSession?.().catch(() => undefined)
             setOpState(initialConversationState([]))
             setConfirmation(null)
+            setPermissionQueuedGoal(null)
+            setShowPermissionOnboarding(false)
+            setOpLoopState('idle')
             setDraft('')
             setOpActiveProvider(null)
             setOpActiveMode(null)
@@ -1016,7 +1232,9 @@ export function App(): React.JSX.Element {
         setState(initialConversationState([]))
         setDraft('')
         setSummary(null)
-        setStaged([])
+            setStaged([])
+            setOpSteps([])
+            setVisionSources([])
         if (window.innerWidth <= NAV_OVERLAY_BREAKPOINT) setNavOpen(false)
     }, [operatorMode, refreshHistory, refreshOpHistory])
 
@@ -1031,6 +1249,14 @@ export function App(): React.JSX.Element {
             // Opening a chat must leave an open Settings panel, otherwise the
             // selected conversation stays hidden behind it.
             setShowSettings(false)
+            setCodeArtifact(null)
+            setInspectorArtifact(null)
+            setRightPanelOpen(true)
+            void getOperatorBridge()?.stopSession?.().catch(() => undefined)
+            setOpSteps([])
+            setConfirmation(null)
+            setOpLoopState('idle')
+            setVisionSources([])
             // Keep the sidebar open on wide layouts (it's a persistent pane); only
             // auto-close on the narrow/mobile overlay where it covers the chat.
             if (window.innerWidth <= NAV_OVERLAY_BREAKPOINT) setNavOpen(false)
@@ -1106,6 +1332,9 @@ export function App(): React.JSX.Element {
                             setOpActiveMode(null)
                             setOpSessionId(null)
                             setOpSteps([])
+                            setPermissionQueuedGoal(null)
+                            setShowPermissionOnboarding(false)
+                            setOpLoopState('idle')
                             setCodeArtifact(null)
                             lastAutoOpenedTurnRef.current = null
                         }
@@ -1171,6 +1400,7 @@ export function App(): React.JSX.Element {
     const latestTurn = conv.turns.at(-1)
     const latestStep = opSteps.at(-1)
     const preparingAttachments = staged.some((attachment) => attachment.status === 'processing')
+    const signedIn = authStatus?.state === 'signed-in'
     // The second line is live process status only. Completed/idle chats stay a
     // compact single row and do not reserve space for placeholder copy.
     const currentDescription = conv.pending
@@ -1241,21 +1471,84 @@ export function App(): React.JSX.Element {
             : [...archivedHistory]
     ).sort(byNewest)
 
+    const operatorEngaged = opSteps.length > 0 || confirmation !== null || isBusyState(opLoopState)
+    const sources: EnvironmentSource[] = [
+        ...visionSources,
+        ...staged.map((attachment) => ({
+            id: attachment.id,
+            name: attachment.name,
+            thumbnailUrl: attachment.captures[0]?.thumbnailUrl,
+            detail: attachment.kind === 'video' ? `${attachment.captures.length} sampled frames` : 'Image attachment'
+        })),
+        ...state.turns.flatMap((turn, turnIndex) => {
+            const captures = turn.captures ?? (turn.capture ? [turn.capture] : [])
+            return captures.map((capture, captureIndex) => ({
+                id: `${turn.id}-source-${captureIndex}`,
+                name: `Screenshot ${turnIndex + 1}.${captureIndex + 1}`,
+                thumbnailUrl: capture.thumbnailUrl,
+                detail: `Attached ${new Date(turn.createdAt).toLocaleString()}`
+            }))
+        })
+    ]
+
+    const openInspector = (artifact: InspectorArtifact): void => {
+        setCodeArtifact(null)
+        setInspectorArtifact(artifact)
+        setRightPanelOpen(true)
+    }
+
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent): void => {
+            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
+                event.preventDefault()
+                setNavOpen((open) => !open)
+                return
+            }
+            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'j') {
+                event.preventDefault()
+                setTerminalOpen((open) => !open)
+            }
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [])
+
     return (
         <CodePanelContext.Provider value={codePanelApi}>
-            <div className={`glass-app${navOpen ? '' : ' glass-app--navhidden'}${codeArtifact ? ' glass-app--codeopen' : ''}`}>
+            <div
+                className={`glass-app${navOpen ? '' : ' glass-app--navhidden'}${codeArtifact || inspectorArtifact ? ' glass-app--codeopen' : ''}`}
+                style={{ '--chat-nav-width': `${navWidth}px` } as React.CSSProperties}
+            >
+                <div className="glass-upper-workspace">
+                    <WorkspaceBar
+                        rightOpen={rightPanelOpen}
+                        terminalOpen={terminalOpen}
+                        onToggleNav={() => setNavOpen((open) => !open)}
+                        onToggleRight={() => {
+                            if (codeArtifact || inspectorArtifact) {
+                                setCodeArtifact(null)
+                                setInspectorArtifact(null)
+                                setRightPanelOpen(true)
+                            } else {
+                                setRightPanelOpen((open) => !open)
+                            }
+                        }}
+                        onToggleTerminal={() => setTerminalOpen((open) => !open)}
+                    />
+                <div
+                    className={`glass-workspace${rightPanelOpen && !codeArtifact && !inspectorArtifact ? ' glass-workspace--environment-open' : ''}`}
+                >
                 <ChatSidebar
                     items={shownHistory}
                     activeId={currentItem?.id ?? null}
                     running={conv.pending}
-                    operatorMode={operatorMode}
+                    computerUseSessionIds={computerUseSessionIds}
                     settingsOpen={showSettings}
-                    onCollapse={() => setNavOpen(false)}
                     onNewSession={onNewSession}
-                    onToggleOperator={() => setOperatorMode((value) => !value)}
                     onOpenSession={onOpenSession}
                     onChatContextMenu={onChatContextMenu}
                     onToggleSettings={toggleSettings}
+                    onAuthStatusChange={setAuthStatus}
                 />
 
                 {navOpen && <div className="glass-nav__scrim" onClick={() => setNavOpen(false)} />}
@@ -1282,56 +1575,47 @@ export function App(): React.JSX.Element {
                     />
                 )}
 
-                <div className="glass-main">
-                    <header className="glass-header">
-                        {!navOpen && (
-                            <button
-                                type="button"
-                                className="glass-iconbtn glass-iconbtn--icon glass-header__lead"
-                                onClick={() => setNavOpen(true)}
-                                aria-label="Show chats"
-                                title="Show chats"
-                            >
-                                <ChevronIcon open={false} />
-                            </button>
-                        )}
-                        <div className="glass-header__actions">
-                            {operatorMode && (
-                                <>
-                                    <HeaderSelect
-                                        ariaLabel="Environment"
-                                        title="Where the operator acts"
-                                        value={opEnvironment}
-                                        onChange={(v) => setOpEnvironment(v as typeof opEnvironment)}
-                                        options={[
-                                            { value: 'browser', label: 'Browser Use (Sandboxed browser)' },
-                                            { value: 'local', label: 'Compute Use (My Mac)' }
-                                        ]}
-                                    />
-                                    <HeaderSelect
-                                        ariaLabel="Autonomy"
-                                        title="How much the operator may do on its own"
-                                        value={opAutonomy}
-                                        onChange={(v) => setOpAutonomy(v as typeof opAutonomy)}
-                                        options={[
-                                            { value: 'autonomous', label: 'Autonomous' },
-                                            { value: 'manual', label: 'Manual' }
-                                        ]}
-                                    />
-                                    <input
-                                        className="glass-select glass-select--budget"
-                                        type="number"
-                                        min={1}
-                                        aria-label="Step budget"
-                                        title="Maximum operator steps"
-                                        value={opStepBudget}
-                                        onChange={(e) => setOpStepBudget(e.target.value)}
-                                    />
-                                </>
-                            )}
-                        </div>
-                    </header>
+                {showPermissionOnboarding && (
+                    <PermissionOnboarding
+                        permissions={permissions}
+                        busyKind={permissionBusyKind}
+                        onAllow={requestOperatorPermission}
+                        onClose={() => {
+                            setShowPermissionOnboarding(false)
+                            if (permissionQueuedGoal) {
+                                setDraft(permissionQueuedGoal.goal)
+                                setOpEnvironment(permissionQueuedGoal.environment)
+                                setOpAutonomy(permissionQueuedGoal.autonomy)
+                                setOpStepBudget(String(permissionQueuedGoal.stepBudget))
+                                setPermissionQueuedGoal(null)
+                            }
+                        }}
+                        onContinue={() => {
+                            setShowPermissionOnboarding(false)
+                            if (permissionQueuedGoal) {
+                                const queued = permissionQueuedGoal
+                                setPermissionQueuedGoal(null)
+                                void runOperatorGoal(queued.goal, queued.environment, {
+                                    autonomy: queued.autonomy,
+                                    stepBudget: queued.stepBudget
+                                })
+                            }
+                        }}
+                    />
+                )}
 
+                <div className="glass-main">
+                    {!showSettings && (
+                        <ConversationMinimap
+                            turns={conv.turns}
+                            onSelect={(turnIndex) => {
+                                const row = conversationRef.current?.querySelector<HTMLElement>(
+                                    `[data-turn-index="${turnIndex}"]`
+                                )
+                                row?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                            }}
+                        />
+                    )}
                     {showSettings ? (
                         <div className="glass-panel">
                             <div className="glass-settings__scroll">
@@ -1428,9 +1712,10 @@ export function App(): React.JSX.Element {
                                     </div>
                                 )}
 
-                            {conv.turns.map((turn) => (
+                            {conv.turns.map((turn, turnIndex) => (
                                 <React.Fragment key={turn.id}>
                                     <div
+                                        data-turn-index={turnIndex}
                                         className={[
                                             'glass-row',
                                             turn.role === 'user' ? 'glass-row--user' : 'glass-row--assistant',
@@ -1486,48 +1771,21 @@ export function App(): React.JSX.Element {
                                 </React.Fragment>
                             ))}
 
-                            {/* Operator steps: a bordered checklist (tick per done
-                            step, a spinner trailing while the agent works). */}
-                            {operatorMode && (opSteps.length > 0 || conv.pending) && (
-                                <div className="glass-steps" role="list" aria-label="Operator steps">
-                                    {opSteps.map((s) => {
-                                        const failed =
-                                            s.kind === 'failure' ||
-                                            (s.status !== undefined && s.status !== 'success')
-                                        return (
-                                            <div
-                                                key={s.id}
-                                                role="listitem"
-                                                className={`glass-step${failed ? ' glass-step--error' : ''}`}
-                                            >
-                                                <span className="glass-step__icon" aria-hidden="true">
-                                                    {failed ? '×' : <CheckIcon />}
-                                                </span>
-                                                <span className="glass-step__text">
-                                                    <span className="glass-step__label">{s.label}</span>
-                                                    {s.sub && <span className="glass-step__sub">{s.sub}</span>}
-                                                    {s.meta && <span className="glass-step__meta">{s.meta}</span>}
-                                                </span>
-                                            </div>
-                                        )
-                                    })}
-                                    {conv.pending && (
-                                        <div className="glass-step glass-step--active" role="listitem">
-                                            <span className="glass-step__icon">
-                                                <span className="glass-spinner" aria-label="Working" />
-                                            </span>
-                                            <span className="glass-step__text">
-                                                <span className="glass-step__label">Working…</span>
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
+                            {/* Operator progress is grouped into readable phases,
+                            but every row still comes from a real engine event. */}
+                            {operatorEngaged && (
+                                <TaskActivityCard
+                                    steps={opSteps}
+                                    pending={state.pending || confirmation !== null}
+                                    loopState={opLoopState}
+                                    environment={opEnvironment}
+                                />
                             )}
 
                             {/* Classic bottom thinking row: only when no per-question
                             row is already visible. */}
                             {conv.pending &&
-                                !operatorMode &&
+                                !operatorEngaged &&
                                 !conv.turns.some(
                                     (t) => t.role === 'user' && thinkingIds.includes(t.id)
                                 ) && (
@@ -1539,13 +1797,6 @@ export function App(): React.JSX.Element {
                                         </div>
                                     </div>
                                 )}
-                            {/* No provider configured: paste a free key right here. */}
-                            {!operatorMode && needsSetup && (
-                                <div className="glass-row glass-row--assistant">
-                                    <SetupCard onOpenSettings={toggleSettings} />
-                                </div>
-                            )}
-
                             {confirmation && (
                                 <div className="glass-confirm" role="alertdialog" aria-label="Confirm action">
                                     <div className="glass-confirm__title">
@@ -1637,7 +1888,7 @@ export function App(): React.JSX.Element {
                         </div>
                     )}
 
-                    {!showSettings && stagedEmail && !operatorMode && (
+                    {!showSettings && stagedEmail && (
                         <div className="glass-mailchip" role="status">
                             <span className="glass-mailchip__icon" aria-hidden="true">
                                 <MailIcon />
@@ -1665,21 +1916,22 @@ export function App(): React.JSX.Element {
                                         ref={inputRef}
                                         className="glass-input"
                                         placeholder={
-                                            dictation.listening
+                                            !signedIn
+                                                ? 'Sign in with GitHub to start chatting…'
+                                                : dictation.listening
                                                 ? 'Listening…'
-                                                : operatorMode
-                                                    ? 'Describe a task for Computer or Browser Use…'
-                                                    : 'Message Smart Copilot…'
+                                                : 'Message Computer or Browser Use…'
                                         }
                                         value={draft}
                                         onChange={(e) => setDraft(e.target.value)}
                                         onKeyDown={onKeyDown}
-                                        readOnly={dictation.listening}
+                                        readOnly={dictation.listening || !signedIn}
+                                        disabled={!signedIn}
                                         rows={1}
                                         aria-label="Message Smart Copilot"
                                     />
                                 </div>
-                                {operatorMode && (
+                                {operatorEngaged && (
                                     <div className="glass-composer__status">
                                         <div
                                             className="glass-status-pill"
@@ -1790,6 +2042,7 @@ export function App(): React.JSX.Element {
                                             type="button"
                                             className="glass-addfile"
                                             onClick={() => setShowAttachMenu((value) => !value)}
+                                            disabled={!signedIn}
                                             aria-expanded={showAttachMenu}
                                             aria-haspopup="menu"
                                             aria-label="Attach from camera or files"
@@ -1897,6 +2150,7 @@ export function App(): React.JSX.Element {
                                             type="button"
                                             className="glass-model"
                                             onClick={openModels}
+                                            disabled={!signedIn}
                                             title={currentModel ? `Model: ${currentModel}` : 'Choose model'}
                                             aria-label="Choose model"
                                         >
@@ -1911,7 +2165,7 @@ export function App(): React.JSX.Element {
                                             type="button"
                                             className={`glass-voicepill__mic${dictation.listening || dictation.transcribing ? ' glass-voicepill__mic--on' : ''}`}
                                             onClick={dictation.toggle}
-                                            disabled={dictation.transcribing}
+                                            disabled={dictation.transcribing || !signedIn}
                                             aria-label={dictation.listening ? 'Stop dictation' : 'Dictate'}
                                             aria-pressed={dictation.listening}
                                             title={
@@ -1925,7 +2179,7 @@ export function App(): React.JSX.Element {
                                             <VoiceBars active={dictation.listening} />
                                         </button>
                                     )}
-                                    {(isSubmittable(draft) || staged.length > 0) && (
+                                    {signedIn && (isSubmittable(draft) || staged.length > 0) && (
                                         <button
                                             type="button"
                                             className="glass-send"
@@ -1941,15 +2195,57 @@ export function App(): React.JSX.Element {
                             </div>
                         </div>
                     )}
+                    {terminalOpen && (
+                        <TerminalPanel
+                            title={currentItem?.title ?? 'Task terminal'}
+                            onClose={() => setTerminalOpen(false)}
+                        />
+                    )}
                 </div>
                 {codeArtifact && (
                     <CodePanel
                         artifact={codeArtifact}
-                        onClose={() => setCodeArtifact(null)}
+                        onClose={() => { setCodeArtifact(null); setRightPanelOpen(true) }}
                         width={codePanelWidth}
                         onResize={setCodePanelWidth}
                     />
                 )}
+                {inspectorArtifact && (
+                    <InspectorPanel
+                        artifact={inspectorArtifact}
+                        onClose={() => { setInspectorArtifact(null); setRightPanelOpen(true) }}
+                        width={codePanelWidth}
+                        onResize={setCodePanelWidth}
+                    />
+                )}
+                {rightPanelOpen && !codeArtifact && !inspectorArtifact && (
+                    <aside className="environment-sidebar" aria-label="Environment panel">
+                        <EnvironmentMenu
+                            workspace={taskWorkspaceContext}
+                            sources={sources}
+                            onOpenChanges={() => {
+                                setInspectorArtifact(null)
+                                setCodeArtifact({ code: taskWorkspaceContext.diff, language: 'diff', title: 'Review' })
+                            }}
+                            onOpenDetails={(title, rows) => openInspector({ kind: 'details', title, rows })}
+                            onOpenSource={(source) => openInspector({ kind: 'source', title: source.name, imageUrl: source.thumbnailUrl, detail: source.detail })}
+                        />
+                    </aside>
+                )}
+                </div>
+                    {navOpen && (
+                        <div
+                            className="glass-nav-resizer"
+                            role="separator"
+                            aria-orientation="vertical"
+                            aria-label="Resize conversation sidebar"
+                            aria-valuemin={230}
+                            aria-valuemax={420}
+                            aria-valuenow={navWidth}
+                            onPointerDown={beginNavResize}
+                        />
+                    )}
+                </div>
             </div>
         </CodePanelContext.Provider>
     )

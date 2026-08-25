@@ -83,7 +83,8 @@ export function titleFromTurns(turns: TurnView[], fallback: string): string {
 const PROVIDER_LABELS: Record<string, string> = {
     primary: 'Primary',
     gemini: 'Gemini',
-    openrouter: 'OpenRouter'
+    openrouter: 'OpenRouter',
+    'deterministic-local': 'Local function'
 }
 
 /** Map an operator provider id to a short human label; fall back to the id. */

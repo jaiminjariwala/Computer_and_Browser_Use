@@ -4,6 +4,44 @@ import { MONACO_THEME, ensureCopilotTheme } from './monacoSetup'
 import { languageLabel, monacoLanguage } from './codeTheme'
 import type { CodeArtifact } from './codePanelContext'
 
+interface DiffFile {
+    name: string
+    lines: string[]
+    additions: number
+    deletions: number
+}
+
+function parseUnifiedDiff(diff: string): DiffFile[] {
+    const files: DiffFile[] = []
+    let current: DiffFile | null = null
+    for (const line of diff.split('\n')) {
+        if (line.startsWith('diff --git ')) {
+            const match = line.match(/^diff --git a\/(.+) b\/(.+)$/)
+            current = { name: match?.[2] ?? 'Changed file', lines: [], additions: 0, deletions: 0 }
+            files.push(current)
+            continue
+        }
+        if (!current) continue
+        if (line.startsWith('+') && !line.startsWith('+++')) current.additions += 1
+        if (line.startsWith('-') && !line.startsWith('---')) current.deletions += 1
+        current.lines.push(line)
+    }
+    return files
+}
+
+function DiffLine({ line }: { line: string }): React.JSX.Element {
+    const kind = line.startsWith('+') && !line.startsWith('+++')
+        ? 'add'
+        : line.startsWith('-') && !line.startsWith('---')
+            ? 'remove'
+            : line.startsWith('@@')
+                ? 'hunk'
+                : line.startsWith('index ') || line.startsWith('---') || line.startsWith('+++')
+                    ? 'meta'
+                    : 'context'
+    return <div className={`review-line review-line--${kind}`}><code>{line || ' '}</code></div>
+}
+
 /**
  * The Claude-style right-hand code panel, backed by Monaco and styled to match
  * the component-library CodeModal: language pill(s) floating at the top-left and
@@ -78,6 +116,10 @@ export function CodePanel({
         monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions(diag)
     }
 
+    const diffFiles = artifact.language === 'diff' ? parseUnifiedDiff(artifact.code) : []
+    const additions = diffFiles.reduce((sum, file) => sum + file.additions, 0)
+    const deletions = diffFiles.reduce((sum, file) => sum + file.deletions, 0)
+
     return (
         <aside
             className="code-panel"
@@ -92,14 +134,26 @@ export function CodePanel({
                 aria-orientation="vertical"
                 aria-label="Resize code panel"
             />
-            {/* Floating language pill(s), top-left. */}
-            <div className="code-pills">
-                <span className="code-pill">{languageLabel(artifact.language)}</span>
-                {artifact.title && <span className="code-pill">{artifact.title}</span>}
-            </div>
+            {artifact.language !== 'diff' && (
+                <div className="code-pills">
+                    <span className="code-pill">{languageLabel(artifact.language)}</span>
+                    {artifact.title && <span className="code-pill">{artifact.title}</span>}
+                </div>
+            )}
+
+            {artifact.language === 'diff' && (
+                <div className="review-tabs" role="tablist" aria-label="Workspace tabs">
+                    <div className="review-tabs__tab" role="tab" aria-selected="true">
+                        <span className="review-tabs__icon">▣</span>
+                        <span>Review</span>
+                        <button type="button" onClick={onClose} aria-label="Close Review">×</button>
+                    </div>
+                    <button type="button" className="review-tabs__add" aria-label="New workspace tab">+</button>
+                </div>
+            )}
 
             {/* Floating text-only buttons, top-right. */}
-            <div className="code-fabs">
+            {artifact.language !== 'diff' && <div className="code-fabs">
                 <button type="button" className="code-fab" onClick={onCopy}>
                     {copied ? 'Copied' : 'Copy'}
                 </button>
@@ -112,10 +166,26 @@ export function CodePanel({
                 >
                     Close
                 </button>
-            </div>
+            </div>}
 
             <div className="code-panel__body">
-                <Editor
+                {artifact.language === 'diff' ? (
+                    <div className="review-panel" aria-label="Changes review">
+                        <header className="review-panel__header">
+                            <div><strong>Branch</strong><span>Task changes</span></div>
+                            <div className="review-panel__totals"><b>+{additions.toLocaleString()}</b><i>−{deletions.toLocaleString()}</i></div>
+                        </header>
+                        <div className="review-panel__branches"><strong>Task workspace</strong><span>→</span><span>generated result</span></div>
+                        {diffFiles.length === 0 ? (
+                            <div className="review-panel__empty"><strong>No task changes yet</strong><span>Files generated or edited by this chat will appear here. This app's own source changes are intentionally excluded.</span></div>
+                        ) : diffFiles.map((file) => (
+                            <section className="review-file" key={file.name}>
+                                <header><strong>{file.name}</strong><span><b>+{file.additions}</b> <i>−{file.deletions}</i></span></header>
+                                <div className="review-file__code">{file.lines.map((line, index) => <DiffLine key={`${file.name}-${index}`} line={line} />)}</div>
+                            </section>
+                        ))}
+                    </div>
+                ) : <Editor
                     key={artifact.language + '-' + artifact.code.length}
                     height="100%"
                     theme={MONACO_THEME}
@@ -149,7 +219,7 @@ export function CodePanel({
                         scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
                         contextmenu: false
                     }}
-                />
+                />}
             </div>
         </aside>
     )

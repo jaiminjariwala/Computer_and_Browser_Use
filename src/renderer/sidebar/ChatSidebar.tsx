@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type {
     GitHubAuthStatus,
     GitHubDeviceChallenge,
@@ -9,24 +9,13 @@ interface ChatSidebarProps {
     items: SessionListItem[]
     activeId: string | null
     running: boolean
-    operatorMode: boolean
+    computerUseSessionIds: ReadonlySet<string>
     settingsOpen: boolean
-    onCollapse: () => void
     onNewSession: () => void
-    onToggleOperator: () => void
     onOpenSession: (id: string) => void
     onChatContextMenu: (event: React.MouseEvent, id: string) => void
     onToggleSettings: () => void
-}
-
-function SidebarCollapseIcon(): React.JSX.Element {
-    return (
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="3" y="3" width="18" height="18" rx="3" />
-            <path d="M9 3v18" />
-            <path d="m15 9-3 3 3 3" />
-        </svg>
-    )
+    onAuthStatusChange?: (status: GitHubAuthStatus) => void
 }
 
 /** Compose pencil — the familiar "start something new" glyph. */
@@ -58,11 +47,29 @@ function SettingsIcon(): React.JSX.Element {
     )
 }
 
-/** The official GitHub mark (invertocat), filled with the current text color. */
-function GitHubIcon(): React.JSX.Element {
+function UsageIcon(): React.JSX.Element {
     return (
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
-            <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+            <path d="M4.2 15.7a8.5 8.5 0 1 1 15.6 0" />
+            <path d="m12 12 4.3-3.1" />
+            <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
+        </svg>
+    )
+}
+
+function LogoutIcon(): React.JSX.Element {
+    return (
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M10 5H5.8A1.8 1.8 0 0 0 4 6.8v10.4A1.8 1.8 0 0 0 5.8 19H10" />
+            <path d="M13 8l4 4-4 4M17 12H8" />
+        </svg>
+    )
+}
+
+function MenuChevron({ open }: { open: boolean }): React.JSX.Element {
+    return (
+        <svg className={open ? 'is-open' : ''} viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m7 5 5 5-5 5" />
         </svg>
     )
 }
@@ -146,11 +153,13 @@ function ChatDescription({ text, animate }: { text: string; animate: boolean }):
 
 function authLabel(status: GitHubAuthStatus | null): { primary: string; secondary: string } {
     if (!status) return { primary: 'GitHub account', secondary: 'Checking sign-in…' }
-    if (status.state === 'signed-in' && status.user) {
-        return {
-            primary: status.user.name || `@${status.user.login}`,
-            secondary: status.user.name ? `@${status.user.login}` : 'Connected with GitHub'
-        }
+    if (status.state === 'signed-in') {
+        return status.user
+            ? {
+                primary: status.user.name || `@${status.user.login}`,
+                secondary: status.user.name ? `@${status.user.login}` : 'Connected with GitHub'
+            }
+            : { primary: 'GitHub account', secondary: 'Signed in' }
     }
     if (status.state === 'authorizing') {
         return { primary: 'Finish GitHub sign-in', secondary: status.message ?? 'Waiting for approval…' }
@@ -168,19 +177,21 @@ export function ChatSidebar({
     items,
     activeId,
     running,
-    operatorMode,
+    computerUseSessionIds,
     settingsOpen,
-    onCollapse,
     onNewSession,
-    onToggleOperator,
     onOpenSession,
     onChatContextMenu,
-    onToggleSettings
+    onToggleSettings,
+    onAuthStatusChange
 }: ChatSidebarProps): React.JSX.Element {
     const [authStatus, setAuthStatus] = useState<GitHubAuthStatus | null>(null)
     const [challenge, setChallenge] = useState<GitHubDeviceChallenge | null>(null)
     const [authBusy, setAuthBusy] = useState(false)
     const [copied, setCopied] = useState(false)
+    const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+    const [usageOpen, setUsageOpen] = useState(false)
+    const accountMenuRef = useRef<HTMLDivElement>(null)
     // Ticks once a minute so the "x mins ago" labels never go stale.
     const [now, setNow] = useState(() => Date.now())
     useEffect(() => {
@@ -189,10 +200,29 @@ export function ChatSidebar({
     }, [])
 
     useEffect(() => {
+        if (!accountMenuOpen) return
+        const closeOnOutsideClick = (event: MouseEvent): void => {
+            if (!accountMenuRef.current?.contains(event.target as Node)) {
+                setAccountMenuOpen(false)
+            }
+        }
+        const closeOnEscape = (event: KeyboardEvent): void => {
+            if (event.key === 'Escape') setAccountMenuOpen(false)
+        }
+        document.addEventListener('mousedown', closeOnOutsideClick)
+        document.addEventListener('keydown', closeOnEscape)
+        return () => {
+            document.removeEventListener('mousedown', closeOnOutsideClick)
+            document.removeEventListener('keydown', closeOnEscape)
+        }
+    }, [accountMenuOpen])
+
+    useEffect(() => {
         let mounted = true
         const apply = (status: GitHubAuthStatus): void => {
             if (!mounted) return
             setAuthStatus(status)
+            onAuthStatusChange?.(status)
             if (status.state !== 'authorizing') setChallenge(null)
         }
         void window.glass.getGitHubAuthStatus().then(apply).catch(() => {
@@ -203,7 +233,7 @@ export function ChatSidebar({
             mounted = false
             unsubscribe()
         }
-    }, [])
+    }, [onAuthStatusChange])
 
     const beginGitHubLogin = useCallback(() => {
         if (authBusy) return
@@ -285,24 +315,24 @@ export function ChatSidebar({
 
     const account = authLabel(authStatus)
     const signedIn = authStatus?.state === 'signed-in'
-    const authDisabled = authBusy || authStatus?.state === 'authorizing' || signedIn
+    const accountInitial = account.primary.trim().charAt(0).toUpperCase() || 'U'
 
     return (
         <aside className="glass-nav glass-nav--open" aria-label="Conversation sidebar">
-            <div className="glass-nav__top">
-                <button type="button" className="glass-nav__collapse" onClick={onCollapse} aria-label="Collapse sidebar" title="Collapse sidebar">
-                    <SidebarCollapseIcon />
-                </button>
+            <div className="glass-nav__brand-row">
+                <span>Computer and Browser Use</span>
             </div>
 
             <div className="glass-nav__primary">
-                <button type="button" className="glass-nav__new" onClick={onNewSession}>
+                <button
+                    type="button"
+                    className="glass-nav__new"
+                    onClick={signedIn ? onNewSession : beginGitHubLogin}
+                    disabled={authBusy || authStatus?.state === 'authorizing'}
+                    title={signedIn ? 'Start a new chat' : 'Sign in with GitHub to start a chat'}
+                >
                     <NewChatIcon />
-                    <span>{operatorMode ? 'New task' : 'New chat'}</span>
-                </button>
-                <button type="button" className={`glass-modebtn${operatorMode ? ' glass-modebtn--on' : ''}`} onClick={onToggleOperator} aria-pressed={operatorMode}>
-                    <BrowserUseIcon />
-                    <span>Computer or Browser Use</span>
+                    <span>New chat</span>
                 </button>
             </div>
 
@@ -331,14 +361,16 @@ export function ChatSidebar({
                                 )}
                             </span>
                             <span className="glass-history__time">
-                                {relativeTimeLabel(item.updatedAt, now)}
+                                {computerUseSessionIds.has(item.id) ? (
+                                    <span className="glass-history__capability" title="Computer or Browser Use was used in this chat" aria-label="Computer or Browser Use used"><BrowserUseIcon /></span>
+                                ) : relativeTimeLabel(item.updatedAt, now)}
                             </span>
                         </button>
                     )
                 })}
             </div>
 
-            <div className="glass-nav__footer">
+            <div className="glass-nav__footer" ref={accountMenuRef}>
                 {challenge && authStatus?.state === 'authorizing' && (
                     <div className="glass-account-code" role="status">
                         <span>GitHub code</span>
@@ -351,35 +383,76 @@ export function ChatSidebar({
                         </button>
                     </div>
                 )}
+                {accountMenuOpen && (
+                    <div className="glass-account-menu" role="menu" aria-label="Account menu">
+                        <div className="glass-account-menu__identity">
+                            {authStatus?.user?.avatarUrl ? (
+                                <img src={authStatus.user.avatarUrl} alt="" />
+                            ) : (
+                                <span className="glass-account-menu__avatar" aria-hidden="true">{accountInitial}</span>
+                            )}
+                            <span>{account.primary}</span>
+                        </div>
+                        <button
+                            type="button"
+                            className="glass-account-menu__item glass-account-menu__usage"
+                            onClick={() => setUsageOpen((open) => !open)}
+                            aria-expanded={usageOpen}
+                        >
+                            <span className="glass-account-menu__icon"><UsageIcon /></span>
+                            <span>Usage remaining</span>
+                            <MenuChevron open={usageOpen} />
+                        </button>
+                        {usageOpen && (
+                            <div className="glass-account-menu__usage-details">
+                                <div><span>Free models</span><strong>Available</strong></div>
+                                <p>Paid usage limits are not configured.</p>
+                            </div>
+                        )}
+                        <button
+                            type="button"
+                            className={`glass-account-menu__item${settingsOpen ? ' is-selected' : ''}`}
+                            onClick={() => {
+                                setAccountMenuOpen(false)
+                                onToggleSettings()
+                            }}
+                        >
+                            <span className="glass-account-menu__icon"><SettingsIcon /></span>
+                            <span>Settings</span>
+                        </button>
+                        <button
+                            type="button"
+                            className="glass-account-menu__item"
+                            onClick={() => {
+                                setAccountMenuOpen(false)
+                                logout()
+                            }}
+                            disabled={!signedIn || authBusy}
+                        >
+                            <span className="glass-account-menu__icon"><LogoutIcon /></span>
+                            <span>Log out</span>
+                        </button>
+                    </div>
+                )}
                 <div className="glass-account">
                     <button
                         type="button"
-                        className="glass-nav__footer-button glass-account__button"
-                        onClick={beginGitHubLogin}
-                        disabled={authDisabled}
+                        className={`glass-nav__footer-button glass-account__button${accountMenuOpen ? ' is-open' : ''}`}
+                        onClick={() => signedIn ? setAccountMenuOpen((open) => !open) : beginGitHubLogin()}
+                        disabled={authBusy || authStatus?.state === 'authorizing'}
                         title={authStatus?.message ?? account.primary}
+                        aria-expanded={signedIn ? accountMenuOpen : undefined}
                     >
-                        <span className="glass-nav__footer-icon"><GitHubIcon /></span>
+                        <span className="glass-account__avatar">
+                            {authStatus?.user?.avatarUrl
+                                ? <img src={authStatus.user.avatarUrl} alt="" />
+                                : <span aria-hidden="true">{accountInitial}</span>}
+                        </span>
                         <span className="glass-nav__footer-copy">
                             <span>{account.primary}</span>
-                            <span>{account.secondary}</span>
                         </span>
                     </button>
-                    {signedIn && (
-                        <button type="button" className="glass-account__logout" onClick={logout} disabled={authBusy}>
-                            Log out
-                        </button>
-                    )}
                 </div>
-                <button
-                    type="button"
-                    className={`glass-nav__footer-button${settingsOpen ? ' glass-nav__footer-button--selected' : ''}`}
-                    onClick={onToggleSettings}
-                    aria-pressed={settingsOpen}
-                >
-                    <span className="glass-nav__footer-icon"><SettingsIcon /></span>
-                    <span>Settings</span>
-                </button>
             </div>
         </aside>
     )
