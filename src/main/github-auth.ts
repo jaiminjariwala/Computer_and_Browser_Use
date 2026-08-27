@@ -35,7 +35,25 @@ interface GitHubTokenStoreOptions {
     codec?: SecretCodec
 }
 
-/** Persists only encrypted token bytes; plaintext exists in main-process memory. */
+interface SavedGitHubSession {
+    token: string
+    user?: GitHubUserIdentity
+}
+
+function savedUser(value: unknown): GitHubUserIdentity | undefined {
+    const record = asRecord(value)
+    const login = stringField(record, 'login')
+    if (!login) return undefined
+    const name = stringField(record, 'name')
+    const avatarUrl = stringField(record, 'avatarUrl')
+    return {
+        login,
+        ...(name ? { name } : {}),
+        ...(avatarUrl ? { avatarUrl } : {})
+    }
+}
+
+/** Persists one encrypted session record; plaintext exists in main-process memory. */
 export class GitHubTokenStore {
     private readonly dir: string
     private readonly codec: SecretCodec
@@ -53,7 +71,7 @@ export class GitHubTokenStore {
         return join(this.dir, TOKEN_TEMP_FILENAME)
     }
 
-    async read(): Promise<string | null> {
+    async readSession(): Promise<SavedGitHubSession | null> {
         let encrypted: Buffer
         try {
             encrypted = await fs.readFile(this.tokenPath)
@@ -62,21 +80,36 @@ export class GitHubTokenStore {
         }
         if (encrypted.length === 0) return null
         try {
-            const token = this.codec.decryptString(encrypted).trim()
-            return token.length > 0 ? token : null
+            const decrypted = this.codec.decryptString(encrypted).trim()
+            if (!decrypted) return null
+            try {
+                const parsed = asRecord(JSON.parse(decrypted))
+                const token = stringField(parsed, 'token')
+                if (token) return { token, user: savedUser(parsed.user) }
+                return null
+            } catch {
+                // Older builds encrypted only the raw token. Accept it once and
+                // upgrade the file after the background profile refresh.
+            }
+            return { token: decrypted }
         } catch {
             return null
         }
     }
 
-    async write(token: string): Promise<void> {
+    async read(): Promise<string | null> {
+        return (await this.readSession())?.token ?? null
+    }
+
+    async write(token: string, user?: GitHubUserIdentity): Promise<void> {
         if (!this.codec.isEncryptionAvailable()) {
             throw new Error('Secure storage is unavailable; GitHub sign-in cannot be saved.')
         }
         const normalized = token.trim()
         if (normalized.length === 0) throw new Error('GitHub returned an empty access token.')
+        const serialized = JSON.stringify({ version: 1, token: normalized, ...(user ? { user } : {}) })
         await fs.mkdir(this.dir, { recursive: true })
-        await fs.writeFile(this.tempPath, this.codec.encryptString(normalized))
+        await fs.writeFile(this.tempPath, this.codec.encryptString(serialized))
         await fs.rename(this.tempPath, this.tokenPath)
     }
 
@@ -300,16 +333,32 @@ export class GitHubAuthService {
         const attempt = this.attempt
         this.hydrated = true
         if (!this.clientId) return
-        const token = await this.tokenStore.read()
+        const saved = await this.tokenStore.readSession()
         if (attempt !== this.attempt) return
-        if (!token) {
+        if (!saved) {
             this.status = { state: 'signed-out' }
             return
         }
+        // Possession of the encrypted saved token is the durable sign-in
+        // boundary. Restore immediately so a slow/offline GitHub profile call
+        // never makes an app relaunch look like a logout. Validation below runs
+        // in the background and signs out only when GitHub explicitly returns
+        // 401; transient failures preserve the local session.
+        this.status = {
+            state: 'signed-in',
+            ...(saved.user ? { user: saved.user } : {}),
+            ...(!saved.user ? { message: 'Signed in. Refreshing your GitHub profile…' } : {})
+        }
+        void this.refreshSavedSession(saved, attempt)
+    }
+
+    private async refreshSavedSession(saved: SavedGitHubSession, attempt: number): Promise<void> {
         try {
-            const user = await this.fetchUser(token)
+            const user = await this.fetchUser(saved.token)
             if (attempt !== this.attempt) return
-            this.status = { state: 'signed-in', user }
+            await this.trackTokenOperation(this.tokenStore.write(saved.token, user))
+            if (attempt !== this.attempt) return
+            this.publish({ state: 'signed-in', user })
         } catch (error) {
             if (attempt !== this.attempt) return
             if (error instanceof GitHubHttpError && error.status === 401) {
@@ -318,10 +367,11 @@ export class GitHubAuthService {
                 this.status = { state: 'signed-out', message: 'Your GitHub session expired.' }
                 return
             }
-            this.status = {
-                state: 'error',
-                message: 'The saved GitHub session could not be verified. Check your connection.'
-            }
+            this.publish({
+                state: 'signed-in',
+                ...(saved.user ? { user: saved.user } : {}),
+                message: 'Signed in. GitHub profile refresh will retry next time.'
+            })
         }
     }
 
@@ -360,7 +410,7 @@ export class GitHubAuthService {
                     const persisted = await this.trackTokenOperation(
                         (async (): Promise<boolean> => {
                             if (input.attempt !== this.attempt) return false
-                            await this.tokenStore.write(accessToken)
+                            await this.tokenStore.write(accessToken, user)
                             if (input.attempt !== this.attempt) {
                                 await this.tokenStore.clear()
                                 return false
@@ -418,7 +468,12 @@ export class GitHubAuthService {
         const login = stringField(payload, 'login')
         if (!login) throw new Error('GitHub did not return an account identity.')
         const name = stringField(payload, 'name')
-        return name ? { login, name } : { login }
+        const avatarUrl = stringField(payload, 'avatar_url')
+        return {
+            login,
+            ...(name ? { name } : {}),
+            ...(avatarUrl ? { avatarUrl } : {})
+        }
     }
 
     private formHeaders(): Record<string, string> {
