@@ -1,22 +1,20 @@
-# Merge notes: how Click Operator was folded in
+# Merge notes: how the operator engine was folded in
 
-Click Operator started life as a separate Electron app. It has been merged into
-Click Copilot so there is one app, one UI, and one set of credentials. This doc
-records how that was done and, more importantly, how the two engines stay out of
-each other's way.
+The operator engine started life as a separate Electron app. It was merged with
+the copilot engine to create Computer or Browser Use: one app, one UI, and one
+set of credentials. This document records how the two engines stay isolated.
 
 ## The goal
 
-Keep everything users love about Click Copilot (its look, its capture flow, its
-input field, its colors) and add the operator as a mode you toggle on, rather than
-bolting on a second app or restyling anything.
+Keep the copilot engine's interface and capture flow, then add the operator as a
+mode instead of bolting on a second application.
 
 ```
    BEFORE                              AFTER
    ------                              -----
-   click-copilot   (advise)            click-copilot
-   click-operator  (act)                 ├─ copilot mode  (advise)   default
-                                          └─ operator mode (act)      toggle
+   copilot app   (advise)            Computer or Browser Use
+   operator app  (act)                 ├─ copilot mode  (advise)   default
+                                      └─ operator mode (act)      toggle
 ```
 
 ## Strategy: vendor as an isolated subtree
@@ -119,9 +117,8 @@ seeds the operator config with the same OpenAI-compatible providers.
   `playwright` **is** a project dependency again. What stayed dropped is the
   old *headless* variant — the current one launches a Chromium window you can
   watch.
-- The old **"never modify click-copilot" independence guard** (a byte-for-byte
-  test in the operator project) was retired, since the merge intentionally
-  reverses that constraint.
+- The old cross-project independence guard was retired because the merge
+  intentionally combined the two codebases.
 
 ## Verifying the merge
 

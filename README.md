@@ -1,239 +1,150 @@
-# Computer or Browser Use and Smart Copilot
+# Computer or Browser Use
 
-**One app that both advises you about your screen and can do the work for you.**
+**A context-aware AI workspace for macOS.**
 
-Normally, asking an AI about something on your screen means: take a screenshot ->
-drag it into the chat (or click attach -> hunt for the file -> paste) -> then type
-your question. This app collapses that: press a shortcut, grab a region, and it
-sits above your input ready to ask. Ask by text or voice, and it tells you the
-next step.
+Computer or Browser Use brings your conversations, screen, files, videos, and
+email into one place. Ask for help, share what you are looking at, or hand off a
+task when you want it done for you.
 
-And when you'd rather the AI *do* the task than advise, just tell it. A command
-like "open youtube and play a song" hands off to the autonomous agent, which
-drives a real browser (or your Mac) on its own, one perceive -> reason -> act step
-at a time, while you watch.
+Smart Copilot is one feature inside Computer or Browser Use: it looks at the
+context you share and gives you the next useful step. Computer or Browser Use
+can also remember useful context, work with documents and media, run browser or
+Mac tasks, and repeat saved workflows.
 
-```
-  Smart Copilot:            you capture the screen, it advises, YOU act.
-  Computer or Browser Use:  you hand it a goal, IT acts, you watch (and can stop it).
-```
+## What Computer or Browser Use can do
+
+- **Chat with context** — keep conversations and history together instead of
+  starting from scratch every time.
+- **See what you see** — capture a region, a window, or the full screen and ask
+  about it.
+- **Understand more than screenshots** — attach images, PDFs, videos, camera
+  recordings, or the email currently selected in Apple Mail or Outlook.
+- **Take voice input locally** — dictate with on-device Whisper.
+- **Remember useful details** — review, add, or clear saved memory from
+  Settings.
+- **Handle a task** — ask Computer or Browser Use to work in a Playwright
+  browser or on your Mac and follow its progress in the chat.
+- **Repeat routine work** — save a task as a playbook, run it again with one
+  click, or schedule it daily while the app is open.
+- **Use your own AI** — connect Gemini, OpenRouter, or another
+  OpenAI-compatible provider.
+
+## How it fits together
+
+| What you do | What Computer or Browser Use does |
+| --- | --- |
+| Ask a question | Answers in the conversation. |
+| Share a screen capture, file, video, or email | Uses it as context for the answer. |
+| Give it a clear task | Routes the task to the browser or your Mac. |
+| Save a task as a playbook | Makes it reusable and optionally scheduled. |
+
+You can switch between chat and task views yourself, but most prompts are
+routed automatically. Questions stay in chat. Clear instructions such as
+“search for three options and compare them” or “open System Settings and turn
+on dark mode” are treated as tasks.
 
 ## Download
 
-**[Download for macOS (Apple Silicon)](https://github.com/jaiminjariwala/computer-or-browser-use-and-smart-copilot/releases/latest)** — grab the `.dmg` from the latest release and drag the app to Applications.
+**[Download the latest macOS build](https://github.com/jaiminjariwala/Computer_and_Browser_Use/releases/latest)**
 
-> **First launch:** right-click the app -> **Open** -> **Open**. The app is not
-> yet notarized with Apple, so macOS asks for this one-time confirmation.
-> After that it opens normally.
+The current release is for Apple Silicon. Open the downloaded DMG and drag the
+app into Applications.
 
-No account, no server, no bundled key: on first run the app helps you add a
-free Gemini or OpenRouter key (or any OpenAI-compatible endpoint you already
-have), and everything runs locally with your own credentials.
+The app is not notarized yet. On first launch, right-click it, choose **Open**,
+then confirm once more. If macOS still blocks it:
 
-Prefer to build from source? See [docs/SETUP.md](docs/SETUP.md).
+```bash
+xattr -cr "/Applications/Computer or Browser Use.app"
+```
 
-## Two modes, one app
+Every user signs in with GitHub before starting a chat. Zero-cost deterministic
+requests run locally; model-backed requests are designed to go through the
+product's managed AI gateway, where free allowances, paid usage, routing, and
+provider credentials are enforced server-side. Publisher API keys must never be
+bundled in the Electron app.
 
-| Mode | What it does | Who acts |
-| --- | --- | --- |
-| **Smart Copilot** (default) | Looks at a screenshot and tells you the next step. | You do. |
-| **Computer or Browser Use** (toggle) | Takes a goal and completes it autonomously in a chosen environment. | The agent does. |
+The current local development build still supports encrypted provider keys in
+Settings as a developer override. That is not the production onboarding flow,
+and the chat no longer asks end users to paste provider secrets inline. See
+[Managed AI and billing](./docs/MANAGED-AI.md).
 
-You can switch with the mode button at the top of the sidebar, but you usually
-don't need to: when you type, the app **routes automatically**. A question or a
-"how do I..." (or a message with a screenshot) stays in Smart Copilot; a command
-like "open youtube and play closer" or "turn on dark mode" flips to Computer or
-Browser Use and picks the right environment for you.
+## Getting started
 
-Each mode keeps its own separate chat and history; toggling swaps between them.
+1. Open Computer or Browser Use and sign in with GitHub.
+2. Type a question, or share something from the attachment menu.
+3. To ask about your screen, use one of the capture shortcuts below.
+4. To hand off a task, describe the outcome you want. Review the environment,
+   approval mode, and step budget before it starts.
 
-## Capturing your screen
+### Shortcuts
 
-Capture uses macOS's own native screenshot tool, bound to the app's shortcuts so
-a shot only ever lands here when *you* press one of them (your normal macOS
-screenshots for other apps are never hijacked):
-
-| Shortcut | Captures |
+| Shortcut | Action |
 | --- | --- |
-| **Cmd+Shift+D** | A region (crosshair; Space toggles window capture) |
-| **Cmd+Shift+F** | A specific window (click to pick) |
-| **Cmd+Shift+S** | The full screen |
+| **Cmd+Shift+Space** | Show or hide Computer or Browser Use |
+| **Cmd+Shift+D** | Capture a region |
+| **Cmd+Shift+F** | Capture a window |
+| **Cmd+Shift+S** | Capture the full screen |
+| **Cmd+Shift+Esc** | Stop an active task |
 
-The shot appears as a thumbnail in a carousel above the input, so you can stack
-several and send them together. You can also:
+Browser tasks do not need macOS control permissions. Tasks that act on your Mac
+need **Screen Recording** and **Accessibility**. Voice input needs
+**Microphone**, and camera recording needs **Camera**.
 
-- **Drag** an image, a screenshot file, or a **video** (mp4/m4v/mov/webm/ogv)
-  anywhere onto the app.
-- Use the **paperclip** button and pick **Files** to attach images, a PDF
-  (rasterized page-by-page), or a video file — or pick **Camera** to record a
-  short video with your device's camera; it lands in the same carousel as a
-  playable preview while frames are sampled for the AI.
+## Privacy and control
 
-## What it does
+- Chats, memories, playbooks, and settings are stored on your Mac.
+- The messages and selected context you send are passed to the AI provider you
+  configure.
+- Screen capture only starts when you use a Computer or Browser Use shortcut.
+- Raw video stays on your Mac. Computer or Browser Use sends a bounded set of
+  sampled frames to the provider instead.
+- Task runs have an activity trail, an approval mode, a step budget, and a
+  global stop shortcut.
+- Stored provider keys and the optional GitHub token are encrypted and never
+  exposed to the renderer.
 
-- **Sees your screen** — capture a region, a window, or the full screen with the
-  shortcuts above.
-- **Stages before sending** — captures and attachments collect in a carousel
-  above the input so you can send several at once.
-- **Understands short videos** — attach or record a video and it is sampled
-  into at most 12 chronological frames the vision model can read (up to 2
-  videos per message, 250 MB each). The raw video never leaves your Mac; only
-  the sampled frames are sent.
-- **Answers by text or voice** — type, or tap the mic and talk (on-device
-  Whisper dictation, live).
-- **Routes automatically** — a command runs the agent; a question is answered by
-  the copilot. No manual mode-flipping needed.
-- **Zero-friction first run** — with no key configured, the first question
-  answers with an in-chat setup card: paste one free key (Gemini or OpenRouter)
-  right there. See [Fallback chain](./docs/FALLBACK.md).
-- **Drives a real browser through its DOM** — Browser Use operates a
-  Playwright-controlled Chromium using page text, links, buttons, and fields
-  instead of relying on pixel guesses.
-- **Works across browser tabs** — it can open, close, switch, and follow popup
-  tabs while retaining bounded active-tab context for research and comparison
-  tasks. Actions are bound to the exact tab and tab-lifecycle generation that
-  were observed; even a popup that opens and closes before execution forces a
-  fresh observation instead of resurrecting stale context.
-- **Fills forms more safely** — focused fields use DOM-aware filling, and native
-  HTML validation blocks Enter or submit clicks while required fields are
-  invalid.
-- **Offers reusable task starters** — built-in research, comparison, and safe-form
-  templates plus up to five goals from the current renderer session fill the
-  composer for review; they never auto-run. Sensitive-looking goals are skipped,
-  and deleting operator history clears the recent list.
-- **Learns without replaying sensitive history** — successful progress is rebuilt
-  from a small allowlist of static action categories, and at most three related
-  completed sessions can supply a few sanitized sub-steps under a generic prior-
-  task label. Screenshots, observations, coordinates, typed values, rationales,
-  completion prose, and complete trajectories are not recalled.
-- **Shows what it is doing without echoing private inputs** — activity rows explain
-  semantic actions, success or failure, and DOM/API versus Vision mode while
-  hiding typed values and raw coordinates.
-- **Adapts and retries** — if a step fails or a provider hiccups, it records the
-  outcome and tries a different approach instead of immediately giving up.
-- **Stays safe** — autonomy levels, a step budget, an emergency stop
-  (Cmd+Shift+Esc), and an "in control" indicator. See
-  [Safety model](./docs/SAFETY.md).
-- **Keeps chats visible while work runs** — a persistent desktop rail shows each
-  chat's title and compact progress, highlights the active chat, and animates the
-  running description with a soft green status dot (with reduced-motion fallbacks).
-- **Supports secure GitHub sign-in** — the bottom-left account entry uses GitHub
-  Device Flow; verification happens in the system browser and the encrypted
-  access token stays in the Electron main process.
-- **Floats when you want** — a pin toggle in the header keeps the window on top;
-  off by default.
+Computer control is still experimental. Use Manual mode for anything involving
+messages, purchases, credentials, deleting data, or other hard-to-reverse
+actions.
 
-## How to use it
+## Build from source
 
-### Smart Copilot (default)
+You need macOS and Node.js `^20.19` or `>=22.12` (Node 22 is recommended).
 
-1. Open the app.
-2. Capture with **Cmd+Shift+D** (region), **Cmd+Shift+F** (window), or
-   **Cmd+Shift+S** (full). The shot lands above the input.
-3. (Optional) add more captures, drag in an image, or attach with the paperclip.
-4. Type or speak your question and press **Enter**.
-5. Read the next step in the chat.
+```bash
+git clone https://github.com/jaiminjariwala/Computer_and_Browser_Use.git
+cd Computer_and_Browser_Use
+npm install
+npx playwright install chromium
+npm run dev
+```
 
-### Computer or Browser Use
+For tasks that control your Mac, install the current input fallback too:
 
-1. Just type a command ("open youtube and play closer by the chainsmokers", or
-   "open system settings and turn on dark mode"). The app switches to the agent
-   and picks **Browser Use** for web tasks or **Compute Use (My Mac)** for Mac
-   tasks automatically. You can also flip the mode button yourself.
-2. In the header, adjust the environment, autonomy (**Autonomous** default, or
-   **Manual**), and the **step budget** if you want.
-3. Optionally choose a task template, edit its placeholders, and submit it.
-4. Watch the privacy-aware activity checklist. Hit **Cancel** to stop and change
-   a setting, or **Cmd+Shift+Esc** / the on-screen Emergency Stop to halt.
+```bash
+brew install cliclick
+```
 
-**Permissions:** Browser Use needs no special macOS permission. Compute Use (My
-Mac) needs both **Screen Recording** and **Accessibility** (to synthesize input);
-the app opens the exact System Settings pane when they are missing. Voice needs
-**Microphone**; the in-app video recorder needs **Camera** (and uses the
-microphone for the recording's audio when allowed). See [Setup](./docs/SETUP.md).
+Useful checks:
 
-## Providers and keys (free options)
-
-The app runs on your own OpenAI-compatible endpoint (corporate or personal) or
-a free hosted key. Paste either free key once — in Settings, or directly in the
-in-chat setup card that appears on your first question:
-
-- **Google Gemini** (`gemini-2.5-flash`) — recommended free vision and
-  tool-calling option. Key: aistudio.google.com/app/apikey
-- **OpenRouter** (`openrouter/free` router) — auto-selects a free model. Key:
-  openrouter.ai/settings/keys
-
-See [Fallback chain](./docs/FALLBACK.md) and
-[AI gateway & models](./docs/AI-GATEWAY.md).
-
-## GitHub account (optional)
-
-The account entry at the bottom-left uses GitHub OAuth Device Flow. It opens the
-verification page in your normal browser and shows the short code in the rail.
-The app never bundles a client secret, and the resulting access token is
-encrypted with Electron `safeStorage`; only your login/display name reaches the
-renderer. Repository owners must configure the public OAuth client ID as
-described in [Development & packaging](./docs/DEVELOPMENT.md#github-oauth-device-flow).
-
-## Download & run (macOS)
-
-> Demo video: _add your Loom/YouTube link here_
-
-1. Download the latest `.dmg` from the [Releases](../../releases) page.
-2. Open it and drag **Computer or Browser Use and Smart Copilot** to Applications.
-3. First launch: the app is not code-signed, so macOS will block it. **Right-click
-   the app -> Open**, then confirm. Once only. If it still refuses:
-   ```bash
-   xattr -cr "/Applications/Computer or Browser Use and Smart Copilot.app"
-   ```
-4. Allow **Screen Recording** and, for Compute Use, **Accessibility** in System
-   Settings -> Privacy & Security; **Microphone** for voice; **Camera** if you
-   use the in-app video recorder.
-
-On first run, Smart Copilot walks you through pasting a free key directly in
-the chat — about a minute of setup (above). Browser Use runs on Playwright's
-Chromium in development; see [Setup](./docs/SETUP.md).
+```bash
+npm run typecheck
+npm test
+npm run eval:operator
+npm run build
+```
 
 ## Documentation
 
-| Doc | What's inside |
-| --- | --- |
-| [Setup](./docs/SETUP.md) | Install, configure keys, permissions, and run both modes. Start here. |
-| [How it works](./docs/HOW-IT-WORKS.md) | Plain-language, analogy-driven walkthrough of the whole app, with diagrams. |
-| [Operator engine](./docs/OPERATOR.md) | Agent loop, memory, browser tabs, form safety, environments, and evaluations. |
-| [Architecture](./docs/ARCHITECTURE.md) | Electron processes, windows, IPC, source layout, and evaluation seams. |
-| [Tech stack](./docs/TECH-STACK.md) | Every technology used and why. |
-| [IPC channels](./docs/IPC-CHANNELS.md) | The full main <-> renderer channel map. |
-| [Safety model](./docs/SAFETY.md) | Autonomy levels, the safety gate, the kill switch, the in-control indicator. |
-| [Fallback chain](./docs/FALLBACK.md) | Your provider -> free hosted keys, plus the in-chat first-run setup card. |
-| [Sandbox container](./docs/SANDBOX-CONTAINER.md) | The optional Docker Linux desktop and noVNC live view. |
-| [Voice dictation](./docs/VOICE.md) | On-device speech-to-text: the worker, the engines, tuning. |
-| [AI gateway & models](./docs/AI-GATEWAY.md) | OpenAI-compatible providers, credentials, and model choice. |
-| [Development & packaging](./docs/DEVELOPMENT.md) | Validation, deterministic agent evaluations, packaging, and manual QA. |
+- [Setup](./docs/SETUP.md)
+- [How Computer or Browser Use works](./docs/HOW-IT-WORKS.md)
+- [Safety model](./docs/SAFETY.md)
+- [Architecture](./docs/ARCHITECTURE.md)
+- [Development and packaging](./docs/DEVELOPMENT.md)
 
-## For developers (quick start)
+## Status
 
-```bash
-npm install
-npm run dev            # run in development
-npm run eval:operator  # deterministic AgentLoop scenarios + JSON report
-npm test               # Vitest suite
-npm run typecheck      # TypeScript checks
-npm run build          # build main + preload + all renderer entries
-```
-
-`npm run eval:operator` runs the production `AgentLoop` headlessly against six
-scripted scenarios and writes `artifacts/operator-evals/latest.json`. The generated
-report is gitignored. See [Development & packaging](./docs/DEVELOPMENT.md) for the
-metrics and full validation sequence.
-
----
-
-Personal R&D project. Tech: Electron + electron-vite + React + TypeScript;
-Monaco Editor for code viewing; on-device Whisper (transformers.js) for
-dictation; a MediaRecorder + canvas
-pipeline that turns local video attachments into bounded JPEG frame sequences
-for vision models; OpenAI-compatible provider clients; GitHub OAuth Device Flow
-with a safeStorage-encrypted token kept in the main process; Playwright-driven
-Chromium for DOM-based browser use; and an optional Dockerized Linux desktop
-for sandboxed experiments.
+Computer or Browser Use is a personal R&D project. It is currently macOS-only
+and ships as an unsigned build. Deterministic routes work locally; model-backed
+chat and reasoning require a provider you connect. Browser and Mac task
+execution should be treated as experimental.
