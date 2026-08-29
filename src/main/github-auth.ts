@@ -206,6 +206,13 @@ export class GitHubAuthService {
         return cloneStatus(this.status)
     }
 
+    /** Main-process-only credential access for exchanging into an app session. */
+    async getAccessToken(): Promise<string | null> {
+        const status = await this.getStatus()
+        if (status.state !== 'signed-in') return null
+        return this.tokenStore.read()
+    }
+
     async startLogin(): Promise<GitHubDeviceChallenge> {
         if (!this.clientId) {
             throw new Error('GitHub sign-in is not configured for this build.')
@@ -522,6 +529,7 @@ interface GitHubAuthIpcOptions {
     getSidebarWindow: () => BrowserWindow | null | undefined
     clientId?: string
     service?: GitHubAuthService
+    onLogout?: () => void | Promise<void>
 }
 
 function trustedSidebarUrl(): string {
@@ -590,9 +598,10 @@ export function registerGitHubAuthIpc(options: GitHubAuthIpcOptions): {
             return service.startLogin()
         }
     )
-    ipcMain.handle('github-auth:logout', (event): Promise<void> => {
+    ipcMain.handle('github-auth:logout', async (event): Promise<void> => {
         authorize(event)
-        return service.logout()
+        await service.logout()
+        await options.onLogout?.()
     })
     ipcMain.handle('github-auth:open-verification', (event): Promise<void> => {
         authorize(event)

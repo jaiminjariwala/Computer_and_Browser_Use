@@ -2,6 +2,7 @@ import { ipcMain, type BrowserWindow } from 'electron'
 import type {
     GlassError,
     MailReadResult,
+    ManagedAccountStatus,
     MemoryEntry,
     Rect,
     SessionContext,
@@ -81,6 +82,10 @@ export interface GlassIpcDeps {
     getWorkspaceContext?: () => WorkspaceContext | Promise<WorkspaceContext>
     /** `terminal:run` — execute a command explicitly entered in the local terminal. */
     onRunTerminalCommand?: (command: string) => TerminalCommandResult | Promise<TerminalCommandResult>
+    /** Publisher-managed account, usage, and Stripe actions. */
+    getManagedAccountStatus?: () => ManagedAccountStatus | Promise<ManagedAccountStatus>
+    onStartPlusCheckout?: () => void | Promise<void>
+    onOpenBillingPortal?: () => void | Promise<void>
 }
 
 const EMPTY_SUMMARY: SessionSummary = {
@@ -161,6 +166,15 @@ export function registerGlassIpc(deps: GlassIpcDeps): () => void {
 
     ipcMain.handle('models:list', async (): Promise<string[]> => {
         return (await deps.onListModels?.()) ?? []
+    })
+    ipcMain.handle('managed:status', async (): Promise<ManagedAccountStatus> => {
+        return (await deps.getManagedAccountStatus?.()) ?? { configured: false, authenticated: false }
+    })
+    ipcMain.handle('managed:checkout', async (): Promise<void> => {
+        await deps.onStartPlusCheckout?.()
+    })
+    ipcMain.handle('managed:portal', async (): Promise<void> => {
+        await deps.onOpenBillingPortal?.()
     })
     ipcMain.handle('workspace:context', async (): Promise<WorkspaceContext> => {
         return (
@@ -251,6 +265,9 @@ export function registerGlassIpc(deps: GlassIpcDeps): () => void {
             'session:open',
             'session:delete',
             'models:list',
+            'managed:status',
+            'managed:checkout',
+            'managed:portal',
             'workspace:context',
             'terminal:run',
             'audio:transcribe',

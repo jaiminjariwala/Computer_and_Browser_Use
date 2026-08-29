@@ -136,6 +136,13 @@ describe('SYSTEM_PROMPT behavior contract', () => {
         expect(prompt).toMatch(/advice-only|observe and advise|advise only/)
         expect(prompt).toMatch(/never (claim|perform)|do not perform/)
     })
+
+    it('answers ordinary coding requests directly with fenced code', () => {
+        expect(prompt).toMatch(/coding request|coding questions/)
+        expect(prompt).toMatch(/directly and completely/)
+        expect(prompt).toMatch(/fenced markdown code block/)
+        expect(prompt).toMatch(/right-side code workspace/)
+    })
 })
 
 // --- formatSummary ----------------------------------------------------------
@@ -324,6 +331,26 @@ describe('mergeSummary', () => {
 // --- GatewayAIClient --------------------------------------------------------
 
 describe('GatewayAIClient', () => {
+    it('uses the publisher-managed provider before developer-local credentials', async () => {
+        const managed = makeFakeClient('managed answer')
+        const local = makeFakeClient('local answer')
+        const ai = new GatewayAIClient({
+            getConfig: async () => config,
+            getApiKey: async () => 'local-key',
+            getManagedProvider: async () => ({
+                baseURL: 'https://managed.example/v1',
+                model: 'managed-standard',
+                apiKey: 'app-session'
+            }),
+            createClient: (nextConfig) => nextConfig.baseURL.includes('managed') ? managed.client : local.client
+        })
+
+        await expect(ai.complete({ summary: emptySummary, recentTurns: [userTurn('t1', 'hello')] }))
+            .resolves.toBe('managed answer')
+        expect(managed.calls).toHaveLength(1)
+        expect(local.calls).toHaveLength(0)
+    })
+
     it('complete sends assembled messages with the configured model and returns content', async () => {
         const { client, calls } = makeFakeClient('Next: click Add permissions')
         const ai = new GatewayAIClient(makeClientOptions(client))

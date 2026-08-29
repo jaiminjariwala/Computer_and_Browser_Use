@@ -4,6 +4,7 @@ import type {
     GatewayConfigInput,
     GitHubAuthStatus,
     GitHubDeviceChallenge,
+    ManagedAccountStatus,
     GlassBridge,
     GlassError,
     MailReadResult,
@@ -78,6 +79,10 @@ const bridge: GlassBridge = {
     startGitHubLogin: (): Promise<GitHubDeviceChallenge> =>
         ipcRenderer.invoke('github-auth:start'),
     logoutGitHub: (): Promise<void> => ipcRenderer.invoke('github-auth:logout'),
+    getManagedAccountStatus: (): Promise<ManagedAccountStatus> =>
+        ipcRenderer.invoke('managed:status'),
+    startPlusCheckout: (): Promise<void> => ipcRenderer.invoke('managed:checkout'),
+    openBillingPortal: (): Promise<void> => ipcRenderer.invoke('managed:portal'),
     openGitHubVerification: (): Promise<void> =>
         ipcRenderer.invoke('github-auth:open-verification'),
     getWorkspaceContext: (): Promise<WorkspaceContext> => ipcRenderer.invoke('workspace:context'),

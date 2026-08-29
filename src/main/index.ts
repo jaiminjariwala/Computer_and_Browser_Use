@@ -12,6 +12,7 @@ import {
     type HostedFallbackId
 } from './config'
 import { registerGitHubAuthIpc } from './github-auth'
+import { ManagedBackendClient } from './managed-backend'
 import { zeroCostChatReply } from './local-chat'
 import {
     registerGlassIpc,
@@ -313,8 +314,15 @@ app.whenReady().then(async () => {
     // GitHub uses OAuth Device Flow in the privileged main process. The public
     // client id is build/runtime configuration; no client secret is bundled,
     // and the encrypted access token never crosses the preload boundary.
-    const githubAuth = registerGitHubAuthIpc({ getSidebarWindow: () => mainWindow })
+    let managedBackend: ManagedBackendClient | null = null
+    const githubAuth = registerGitHubAuthIpc({
+        getSidebarWindow: () => mainWindow,
+        onLogout: () => managedBackend?.clearSession()
+    })
     disposeGitHubAuthIpc = githubAuth.dispose
+    managedBackend = new ManagedBackendClient({
+        getGitHubToken: () => githubAuth.service.getAccessToken()
+    })
 
     // Persistent session store: writes the active session to
     // `userData/sessions/current.json` after each change and loads it on launch
@@ -354,6 +362,10 @@ app.whenReady().then(async () => {
     // AI Gateway client, backed by the Config / Credential Store so settings
     // changes take effect on the next request (Req 7.2).
     const aiClient = new GatewayAIClient({
+        // Signed-in release users reach the publisher-managed service first;
+        // no provider key crosses into the app. Developer-owned local keys
+        // remain available as an explicit fallback during backend development.
+        getManagedProvider: () => managedBackend!.provider(),
         getConfig: () => configStore.readConfig(),
         getApiKey: () => configStore.getApiKey(),
         // Built-in free hosted providers (OpenRouter -> Gemini), tried after
@@ -648,6 +660,9 @@ app.whenReady().then(async () => {
         onReadSelectedMail: (source) => readSelectedMail(source),
         getWorkspaceContext: () => readWorkspaceContext(),
         onRunTerminalCommand: runTerminalCommand,
+        getManagedAccountStatus: () => managedBackend!.status(),
+        onStartPlusCheckout: () => managedBackend!.createCheckout(),
+        onOpenBillingPortal: () => managedBackend!.openBillingPortal(),
         onOpenSession: async (id) => {
             const current = sessionManager.getSession()
             // The renderer synthesizes the current in-memory session alongside

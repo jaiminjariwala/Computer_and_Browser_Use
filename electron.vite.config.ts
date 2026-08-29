@@ -1,6 +1,6 @@
 import { builtinModules } from 'module'
 import { resolve } from 'path'
-import { defineConfig } from 'electron-vite'
+import { defineConfig, loadEnv } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 
 /** Match electron-vite's built-in main/preload externals plus app-specific ones. */
@@ -10,7 +10,13 @@ const nodeExternals = [
     ...builtinModules.flatMap((m) => [m, `node:${m}`])
 ]
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+    // Vite does not copy values from .env/.env.local into process.env while
+    // evaluating the config. Load them explicitly so the Electron main build
+    // receives public build-time configuration such as the managed backend URL.
+    const env = loadEnv(mode, process.cwd(), '')
+
+    return {
     main: {
         // GitHub OAuth client ids are public identifiers. Embed the value used
         // for this build while still allowing a runtime environment override.
@@ -19,7 +25,12 @@ export default defineConfig({
             // Copilot" (Device Flow — no secret exists in this app). Override
             // with GITHUB_OAUTH_CLIENT_ID to point builds at a different app.
             __GITHUB_OAUTH_CLIENT_ID__: JSON.stringify(
-                process.env.GITHUB_OAUTH_CLIENT_ID ?? 'Ov23lifIQM3WCHRFLS04'
+                process.env.GITHUB_OAUTH_CLIENT_ID ?? env.GITHUB_OAUTH_CLIENT_ID ?? 'Ov23lifIQM3WCHRFLS04'
+            ),
+            // Public URL of the publisher-operated Go service. Provider and
+            // Stripe secrets remain on that service; only this URL is shipped.
+            __MANAGED_BACKEND_URL__: JSON.stringify(
+                process.env.MANAGED_BACKEND_URL ?? env.MANAGED_BACKEND_URL ?? ''
             )
         },
         build: {
@@ -110,5 +121,6 @@ export default defineConfig({
             }
         },
         plugins: [react()]
+    }
     }
 })

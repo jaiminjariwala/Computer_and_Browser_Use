@@ -259,6 +259,31 @@ export interface GitHubDeviceChallenge {
     expiresAt: string
 }
 
+/** Publisher-managed account and allowance returned by the Go backend. */
+export interface ManagedUsage {
+    plan: 'free' | 'plus'
+    used_units: number
+    limit_units: number
+    remaining_units: number
+    resets_at: string
+}
+
+export interface ManagedAccountStatus {
+    configured: boolean
+    authenticated: boolean
+    user?: {
+        id: string
+        login: string
+        name: string
+        email?: string
+        avatar_url?: string
+        plan: 'free' | 'plus'
+        subscription_status: string
+    }
+    usage?: ManagedUsage
+    message?: string
+}
+
 /** Kinds of failures surfaced to the user. */
 export type GlassErrorKind =
     | 'hotkey-conflict'
@@ -351,6 +376,12 @@ export interface GlassBridge {
     openGitHubVerification(): Promise<void>
     /** Remove the encrypted GitHub token and local identity state. */
     logoutGitHub(): Promise<void>
+    /** Load plan and usage from the publisher-managed backend. */
+    getManagedAccountStatus(): Promise<ManagedAccountStatus>
+    /** Open Stripe-hosted Plus Checkout in the default browser. */
+    startPlusCheckout(): Promise<void>
+    /** Open Stripe's customer portal for an existing subscriber. */
+    openBillingPortal(): Promise<void>
     /** Read current local Git/environment metadata; performs no mutation. */
     getWorkspaceContext(): Promise<WorkspaceContext>
     /** Run one explicit command entered by the user in the bottom terminal. */

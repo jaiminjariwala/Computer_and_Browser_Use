@@ -64,9 +64,15 @@ export const SYSTEM_PROMPT = [
     '- When the user sends a captured screen region without any accompanying text, interpret that image in the context of the existing session and continue toward the goal you have already inferred. Do not treat it as a fresh, contextless screenshot.',
     '',
     'Responding with the next step:',
-    '- Reply with exactly ONE concrete next step, grounded in what is actually visible in the latest capture plus the session so far. Refer to the specific buttons, fields, menus, or labels you can see.',
-    '- Do not dump a full multi-step plan or a long checklist. Give the single next action the user should take now; you will guide the following steps as the session continues.',
+    '- For an interactive screen-guidance request, reply with exactly ONE concrete next step, grounded in what is actually visible in the latest capture plus the session so far. Refer to the specific buttons, fields, menus, or labels you can see.',
+    '- For an ordinary chat, explanation, or coding request, answer the request directly and completely. Do not force a general question into the one-next-step screen-guidance format.',
+    '- For screen guidance, do not dump a full multi-step plan or a long checklist. Give the single next action the user should take now; you will guide the following steps as the session continues.',
     '- Keep guidance specific and actionable rather than generic advice.',
+    '',
+    'Code responses:',
+    '- Coding questions are supported, including on the basic route when a model is available. Provide working, self-contained code at the level requested by the user.',
+    '- Put every code sample in a fenced Markdown code block with an accurate language identifier. The app uses those fences to open generated code automatically in its right-side code workspace.',
+    '- Keep explanation outside the code fence. Do not omit the code fence or return raw unformatted code.',
     '',
     'When intent is unclear:',
     "- Only when the goal genuinely cannot be inferred from the session and the current capture, ask EXACTLY ONE clarifying question and stop. Do not ask multiple questions, and do not guess or fabricate a next step or plan when you are unsure.",
@@ -516,6 +522,8 @@ export interface AIClientOptions {
      * endpoint with its stored key.
      */
     getFallbackProviders?: () => Promise<Array<{ baseURL: string; model: string; apiKey: string }>>
+    /** Publisher-managed provider, tried first when the signed-in app session is ready. */
+    getManagedProvider?: () => Promise<{ baseURL: string; model: string; apiKey: string } | null>
     /**
      * Sink for durable user facts the summarize pass extracts (automatic
      * memory). Absent = auto-capture off.
@@ -543,6 +551,11 @@ export class GatewayAIClient implements AIClient {
     private readonly getFallbackProviders?: () => Promise<
         Array<{ baseURL: string; model: string; apiKey: string }>
     >
+    private readonly getManagedProvider?: () => Promise<{
+        baseURL: string
+        model: string
+        apiKey: string
+    } | null>
     private readonly onUserFacts?: (facts: string[]) => void
 
     constructor(options: AIClientOptions) {
@@ -552,6 +565,7 @@ export class GatewayAIClient implements AIClient {
         this.systemPrompt = options.systemPrompt ?? SYSTEM_PROMPT
         this.summaryPrompt = options.summaryPrompt ?? SUMMARY_SYSTEM_PROMPT
         this.getFallbackProviders = options.getFallbackProviders
+        this.getManagedProvider = options.getManagedProvider
         this.onUserFacts = options.onUserFacts
     }
 
@@ -563,6 +577,23 @@ export class GatewayAIClient implements AIClient {
     private async runWithFallback<T>(
         op: (client: ChatClient, model: string) => Promise<T>
     ): Promise<T> {
+        let managed: { baseURL: string; model: string; apiKey: string } | null = null
+        try {
+            managed = this.getManagedProvider ? await this.getManagedProvider() : null
+        } catch (error) {
+            logProviderFailure('managed backend session', error)
+        }
+        if (managed) {
+            const client = this.createClient(
+                { baseURL: managed.baseURL, model: managed.model },
+                managed.apiKey
+            )
+            try {
+                return await this.run(() => op(client, managed.model))
+            } catch (error) {
+                logProviderFailure('managed backend', error)
+            }
+        }
         try {
             return await this.run(async () => {
                 const { client, model } = await this.resolveClient()
