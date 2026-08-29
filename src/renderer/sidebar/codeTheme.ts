@@ -82,3 +82,16 @@ export function extractCodeBlocks(markdown: string): ExtractedCode[] {
     }
     return blocks
 }
+
+/**
+ * Choose the main artifact to open when an answer contains multiple snippets.
+ * The largest non-empty block is normally the complete solution; short setup
+ * commands and usage examples stay available as inline pills in the answer.
+ */
+export function primaryCodeBlock(markdown: string): ExtractedCode | null {
+    const blocks = extractCodeBlocks(markdown)
+    if (blocks.length === 0) return null
+    return blocks.reduce((primary, block) =>
+        block.code.length > primary.code.length ? block : primary
+    )
+}

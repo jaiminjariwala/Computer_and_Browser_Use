@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import type { MemoryEntry } from '@shared/types'
+import type { ConfigStatus, MemoryEntry } from '@shared/types'
 import { getConfigBridge } from './config-bridge'
 import { getChatBridge } from './bridges'
 
@@ -56,7 +56,7 @@ const hintStyle: React.CSSProperties = {
 
 const storedDot = <span style={{ color: '#19c37d' }}>●</span>
 
-export function Settings(): React.JSX.Element {
+export function Settings({ onConfigStatusChange }: { onConfigStatusChange?: (status: ConfigStatus) => void } = {}): React.JSX.Element {
     const [baseURL, setBaseURL] = useState('')
     const [model, setModel] = useState('')
     const [apiKey, setApiKey] = useState('')
@@ -82,10 +82,11 @@ export function Settings(): React.JSX.Element {
             setHasCredentials(status.hasCredentials)
             setHasOpenrouter(status.hasOpenrouter)
             setHasGemini(status.hasGemini)
+            onConfigStatusChange?.(status)
         } catch {
             /* Leave fields as-is; the user can still enter values. */
         }
-    }, [])
+    }, [onConfigStatusChange])
 
     useEffect(() => {
         void loadStatus()

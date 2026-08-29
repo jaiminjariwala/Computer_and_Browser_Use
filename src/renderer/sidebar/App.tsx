@@ -8,7 +8,7 @@ import { VideoRecorder } from './VideoRecorder'
 import { extractVideoFrames, formatMediaDuration } from './video'
 import { CodePanel } from './CodePanel'
 import { CodePanelContext, type CodeArtifact } from './codePanelContext'
-import { extractCodeBlocks } from './codeTheme'
+import { primaryCodeBlock } from './codeTheme'
 import { getConfigBridge } from './config-bridge'
 import { isSubmittable, makeTextTurn } from './chat'
 import {
@@ -124,6 +124,7 @@ export function App(): React.JSX.Element {
     const codePanelApi = useRef({ open: (a: CodeArtifact) => {
         setInspectorArtifact(null)
         setCodeArtifact(a)
+        setRightPanelOpen(false)
     } }).current
     // Tracks the last copilot answer we auto-opened, so a fresh answer with code
     // opens the panel exactly once (clicking a pill re-opens it thereafter).
@@ -488,10 +489,11 @@ export function App(): React.JSX.Element {
             if (t.role !== 'assistant') continue
             if (t.id === lastAutoOpenedTurnRef.current) return
             lastAutoOpenedTurnRef.current = t.id
-            const blocks = extractCodeBlocks(t.text ?? '')
-            if (blocks.length > 0) {
-                const b = blocks[blocks.length - 1]
-                setCodeArtifact({ code: b.code, language: b.language })
+            const block = primaryCodeBlock(t.text ?? '')
+            if (block) {
+                setInspectorArtifact(null)
+                setCodeArtifact({ code: block.code, language: block.language })
+                setRightPanelOpen(false)
             }
             return
         }
@@ -554,6 +556,12 @@ export function App(): React.JSX.Element {
                 baseURLRef.current = s.baseURL
             })
             .catch(() => undefined)
+    }, [])
+
+    const applyConfigStatus = useCallback((status: ConfigStatus): void => {
+        setConfigStatus(status)
+        setCurrentModel(usableSelectedModel(status))
+        baseURLRef.current = status.baseURL
     }, [])
 
     const openModels = useCallback(() => {
@@ -1619,7 +1627,7 @@ export function App(): React.JSX.Element {
                     {showSettings ? (
                         <div className="glass-panel">
                             <div className="glass-settings__scroll">
-                                <Settings />
+                                <Settings onConfigStatusChange={applyConfigStatus} />
                             </div>
                         </div>
                     ) : (
@@ -2064,7 +2072,7 @@ export function App(): React.JSX.Element {
                                     />
                                 </div>
                                 <div className="glass-composer__actions">
-                                    <div className="glass-model-wrap">
+                                    {currentModel && <div className="glass-model-wrap">
                                         {showModels && (
                                             <>
                                                 <div
@@ -2159,7 +2167,7 @@ export function App(): React.JSX.Element {
                                             </span>
                                             <CaretIcon open={showModels} />
                                         </button>
-                                    </div>
+                                    </div>}
                                     {dictation.supported && (
                                         <button
                                             type="button"

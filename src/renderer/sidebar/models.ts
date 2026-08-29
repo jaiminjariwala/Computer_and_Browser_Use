@@ -67,6 +67,12 @@ const RECOMMENDED: Array<{ pattern: RegExp; label: string }> = [
  * of the raw id.
  */
 export function friendlyLabel(id: string): string {
+    const exact: Record<string, string> = {
+        'gemini-2.5-flash': 'Gemini 2.5 Flash',
+        'gemini-2.5-pro': 'Gemini 2.5 Pro',
+        'openrouter/free': 'OpenRouter Free'
+    }
+    if (exact[id]) return exact[id]
     for (const entry of RECOMMENDED) {
         if (entry.pattern.test(id)) return entry.label
     }
