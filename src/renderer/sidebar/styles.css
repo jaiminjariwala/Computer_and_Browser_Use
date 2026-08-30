@@ -2574,11 +2574,11 @@ body.is-resizing-terminal {
 .glass-markdown code.glass-inline-code {
     font-family: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 12px;
-    background: var(--field-bg, #f3f4f6);
-    border: 1px solid var(--field-border, #e5e7eb);
+    background: var(--user-bubble);
+    border: 0;
     border-radius: 5px;
-    padding: 1px 5px;
-    color: #b91c6b;
+    padding: 1.5px 5px;
+    color: inherit;
 }
 
 /* Floating language pills (top-left of the panel) — matches the CodeModal. */
@@ -3309,8 +3309,8 @@ body.is-resizing-terminal {
 }
 
 .glass-account-menu__usage-details {
-    margin: -2px 7px 5px 38px;
-    padding: 5px 0 7px;
+    margin: -2px 7px 7px 38px;
+    padding: 4px 0 7px;
 }
 
 .glass-account-menu__usage-details div {
@@ -3320,18 +3320,116 @@ body.is-resizing-terminal {
     gap: 8px;
     color: rgb(39, 39, 39);
     font-size: 12px;
+    min-height: 23px;
 }
 
 .glass-account-menu__usage-details strong {
-    color: #5f7f68;
-    font-weight: 550;
+    color: rgb(142, 143, 144);
+    font-size: 10.5px;
+    font-weight: 500;
 }
 
-.glass-account-menu__usage-details p {
-    margin: 4px 0 0;
+.glass-account-menu__usage-details strong.is-connected {
+    color: #4f7d5c;
+}
+
+.glass-account-menu__usage-details .glass-account-menu__usage-heading {
+    margin: 1px 0 5px;
     color: rgb(142, 143, 144);
     font-size: 10.5px;
     line-height: 1.35;
+}
+
+.glass-account-menu__connect,
+.glass-account-menu__upgrade {
+    width: 100%;
+    min-height: 31px;
+    margin-top: 6px;
+    padding: 6px 9px;
+    border: .5px solid rgba(42, 42, 48, .16);
+    border-radius: 9px;
+    color: rgb(39, 39, 39);
+    background: #fff;
+    font: 500 11.5px/1.2 Inter, system-ui, sans-serif;
+    text-align: center;
+    cursor: pointer;
+}
+
+.glass-account-menu__connect:hover,
+.glass-account-menu__upgrade:hover {
+    background: #eeeeee;
+}
+
+.glass-account-menu__upgrade {
+    color: #fff;
+    background: #222226;
+    border-color: #222226;
+}
+
+.glass-account-menu__upgrade:hover {
+    background: #111114;
+}
+
+.plus-upgrade {
+    position: fixed;
+    z-index: 100;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 28px;
+}
+
+.plus-upgrade__backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: rgba(245, 245, 247, .7);
+    backdrop-filter: blur(8px);
+}
+
+.plus-plan-card {
+    position: relative;
+    width: min(430px, calc(100vw - 56px));
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
+    margin: 0;
+    padding: 28px;
+    border: .5px solid rgba(42, 42, 48, .2);
+    border-radius: 20px;
+    color: rgb(39, 39, 39);
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(22, 22, 28, .18), 0 2px 8px rgba(22, 22, 28, .06);
+}
+
+.plus-plan-card__close { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; color: #77777e; background: transparent; font: 300 24px/1 Inter, system-ui, sans-serif; cursor: pointer; }
+.plus-plan-card__close:hover { color: rgb(39, 39, 39); background: #f1f1f2; }
+.plus-plan-card__eyebrow { color: rgb(142, 143, 144); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.plus-plan-card h2 { margin: 8px 0 20px; font-size: 28px; font-weight: 600; }
+.plus-plan-card__price { display: flex; align-items: baseline; margin-bottom: 15px; }
+.plus-plan-card__price sup { color: #77777e; font-size: 16px; }
+.plus-plan-card__price strong { font-size: 48px; font-weight: 530; letter-spacing: -.055em; }
+.plus-plan-card__price span { margin-left: 8px; color: #77777e; font-size: 11px; }
+.plus-plan-card > div > p { margin: 0 0 20px; color: #66666d; font-size: 13px; line-height: 1.45; }
+
+.plus-plan-card__speed { min-height: 42px; display: flex; align-items: center; justify-content: space-between; margin: 8px 0 16px; padding: 0 13px; border-radius: 10px; background: #f3f3f4; color: #77777e; font-size: 12px; }
+.plus-plan-card__speed strong { color: rgb(39, 39, 39); font-weight: 550; }
+.plus-plan-card__checkout { width: 100%; min-height: 43px; border: 0; border-radius: 999px; color: #fff; background: #171717; font: 600 13px/1 Inter, system-ui, sans-serif; cursor: pointer; }
+.plus-plan-card__checkout:hover { background: #292929; }
+.plus-plan-card__checkout:disabled { color: #a5a5aa; background: #e8e8ea; cursor: wait; }
+.plus-plan-card__error { margin: -8px 0 0; color: #b42318; font-size: 11px; line-height: 1.4; }
+
+.plus-plan-card ul { display: grid; gap: 13px; margin: 24px 0 0; padding: 0; list-style: none; }
+.plus-plan-card li { display: flex; align-items: flex-start; gap: 10px; color: rgb(39, 39, 39); font-size: 12.5px; line-height: 1.35; }
+.plus-plan-card li svg { flex: 0 0 17px; width: 17px; height: 17px; fill: none; stroke: #159455; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.plus-plan-card .plus-plan-card__notice { margin: 24px 0 0; color: rgb(142, 143, 144); font-size: 10.5px; line-height: 1.45; }
+
+@media (max-width: 620px) {
+    .plus-upgrade { padding: 12px; }
+    .plus-plan-card { width: calc(100vw - 24px); max-height: calc(100vh - 24px); padding: 23px; border-radius: 18px; }
 }
 
 .glass-account__logout {

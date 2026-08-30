@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type {
     GitHubAuthStatus,
     GitHubDeviceChallenge,
+    ManagedAccountStatus,
     SessionListItem
 } from '@shared/types'
+import { PlusUpgradeModal } from './PlusUpgradeModal'
 
 interface ChatSidebarProps {
     items: SessionListItem[]
@@ -191,6 +193,8 @@ export function ChatSidebar({
     const [copied, setCopied] = useState(false)
     const [accountMenuOpen, setAccountMenuOpen] = useState(false)
     const [usageOpen, setUsageOpen] = useState(false)
+    const [upgradeOpen, setUpgradeOpen] = useState(false)
+    const [managedStatus, setManagedStatus] = useState<ManagedAccountStatus | null>(null)
     const accountMenuRef = useRef<HTMLDivElement>(null)
     // Ticks once a minute so the "x mins ago" labels never go stale.
     const [now, setNow] = useState(() => Date.now())
@@ -201,6 +205,9 @@ export function ChatSidebar({
 
     useEffect(() => {
         if (!accountMenuOpen) return
+        void window.glass.getManagedAccountStatus().then(setManagedStatus).catch(() => {
+            setManagedStatus({ configured: true, authenticated: false, message: 'Usage is temporarily unavailable.' })
+        })
         const closeOnOutsideClick = (event: MouseEvent): void => {
             if (!accountMenuRef.current?.contains(event.target as Node)) {
                 setAccountMenuOpen(false)
@@ -316,6 +323,11 @@ export function ChatSidebar({
     const account = authLabel(authStatus)
     const signedIn = authStatus?.state === 'signed-in'
     const accountInitial = account.primary.trim().charAt(0).toUpperCase() || 'U'
+    const managedUsage = managedStatus?.usage
+    const isPlus = managedUsage?.plan === 'plus'
+    const remainingPercent = managedUsage && managedUsage.limit_units > 0
+        ? Math.max(0, Math.round((managedUsage.remaining_units / managedUsage.limit_units) * 100))
+        : null
 
     return (
         <aside className="glass-nav glass-nav--open" aria-label="Conversation sidebar">
@@ -405,8 +417,28 @@ export function ChatSidebar({
                         </button>
                         {usageOpen && (
                             <div className="glass-account-menu__usage-details">
-                                <div><span>Free models</span><strong>Available</strong></div>
-                                <p>Paid usage limits are not configured.</p>
+                                <p className="glass-account-menu__usage-heading">
+                                    {isPlus ? 'Computer and Browser Use Plus' : 'Free plan'}
+                                </p>
+                                {remainingPercent !== null ? (
+                                    <div><span>Monthly usage remaining</span><strong className="is-connected">{remainingPercent}%</strong></div>
+                                ) : (
+                                    <div><span>Monthly usage</span><strong>{managedStatus?.message ?? 'Loading…'}</strong></div>
+                                )}
+                                <button
+                                    type="button"
+                                    className="glass-account-menu__upgrade"
+                                    onClick={() => {
+                                        setAccountMenuOpen(false)
+                                        if (isPlus) {
+                                            void window.glass.openBillingPortal()
+                                        } else {
+                                            setUpgradeOpen(true)
+                                        }
+                                    }}
+                                >
+                                    {isPlus ? 'Manage subscription' : 'Upgrade to Plus'}
+                                </button>
                             </div>
                         )}
                         <button
@@ -454,6 +486,7 @@ export function ChatSidebar({
                     </button>
                 </div>
             </div>
+            {upgradeOpen && <PlusUpgradeModal onClose={() => setUpgradeOpen(false)} />}
         </aside>
     )
 }
