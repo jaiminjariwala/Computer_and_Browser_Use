@@ -134,6 +134,16 @@ npm run eval:operator
 npm run build
 ```
 
+The managed AI and Plus billing service is being built in Go under
+[`backend`](./backend). Its local setup and Stripe test-mode checklist are in
+[`backend/README.md`](./backend/README.md).
+
+For local managed-service development, copy [`.env.example`](./.env.example)
+to `.env.local`, run the Go service and PostgreSQL as described above, then
+start Electron. Release builds should set `MANAGED_BACKEND_URL` to the deployed
+HTTPS service; provider and Stripe secrets must never be added to the Electron
+environment file.
+
 ## Documentation
 
 - [Setup](./docs/SETUP.md)
@@ -141,6 +151,7 @@ npm run build
 - [Safety model](./docs/SAFETY.md)
 - [Architecture](./docs/ARCHITECTURE.md)
 - [Development and packaging](./docs/DEVELOPMENT.md)
+- [Managed Go backend and Stripe](./backend/README.md)
 
 ## Status
 

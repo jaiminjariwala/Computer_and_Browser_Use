@@ -23,16 +23,81 @@ Electron app
   -> managed chat endpoint
   -> cost router
        1. deterministic local/server rule
-       2. cheapest eligible model
-       3. stronger model when the task requires it
+       2. Gemini Flash when eligible and quota is available
+       3. OpenRouter/free or another approved low-cost route
+       4. OpenAI coding model when the task requires it or cheaper routes fail
   -> provider API
-  -> metered result + updated allowance
+  -> metered result + actual serving model + updated Plus allowance
 ```
 
 The backend, not Electron, owns provider API keys. Shipping a shared Gemini,
 OpenRouter, Anthropic, or OpenAI key inside the desktop bundle would let anyone
 extract and spend it. Consumer ChatGPT/Claude subscriptions are also not API
 credentials and are never scraped or reused by the app.
+
+## Product plans
+
+The app's **Plus** subscription is $24.99 USD per month. It can include the app's
+own coding agent, managed model allowance, vision, and computer/browser-use
+features. It does not include, transfer, or impersonate a separate ChatGPT Plus,
+Codex, Claude, or provider subscription. Any OpenAI API usage included in this
+product is paid and metered by this product's backend.
+
+Basic users may ask normal coding questions and receive working code through the
+eligible low-cost route. Plus raises the allowance and unlocks the repo-scale
+coding agent and specialized computer-use routes. Model answers must fence code
+with a language identifier; the desktop client automatically opens the primary
+generated code block in the right-side code workspace.
+
+## Routing and usage semantics
+
+The production router is task-aware and cost-aware, not tied to a model name:
+
+1. Zero-cost deterministic answers run before any provider request.
+2. Basic chat and coding prompts try an eligible managed Gemini route first.
+3. OpenRouter or another approved low-cost provider is the next fallback.
+4. The OpenAI coding route is used for repo-scale/agentic work, when policy
+   selects it directly, or after the cheaper eligible providers report quota,
+   rate-limit, authentication, or availability failures.
+
+A malformed or low-quality answer is not silently retried across providers;
+fallbacks are driven by typed provider failures and quota state so billing is
+auditable and duplicate answers are avoided.
+
+Every successful response records its actual `provider`, `model`, token/cost
+usage, fallback reason (when applicable), and the user's product usage units.
+The UI may display `Gemini 2.5 Flash`, `OpenRouter Free`, or `Codex` as the model
+used for that response. It must never label a Gemini/OpenRouter response as
+Codex.
+
+All routes deduct from one product-owned **Plus usage** allowance. This is a
+normalized product meter, not a provider token counter: inexpensive routes use
+fewer units and the OpenAI coding route uses more. The account menu shows the
+remaining percentage and reset time, while response metadata shows the actual
+model used. This lets all provider costs count toward one customer allowance
+without misrepresenting which provider produced an answer.
+
+Suggested backend response metadata:
+
+```json
+{
+  "route": {
+    "provider": "openai",
+    "model": "gpt-5-codex",
+    "displayName": "Codex",
+    "fallbackReason": "gemini_quota_exhausted"
+  },
+  "usage": {
+    "unitsCharged": 12,
+    "remainingUnits": 734,
+    "limitUnits": 1000,
+    "resetsAt": "2026-09-29T00:00:00Z"
+  }
+}
+```
+
+The exact OpenAI model id remains a server-side routing setting so it can be
+updated without shipping a new Electron build.
 
 ## Current development build
 
