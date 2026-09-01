@@ -448,7 +448,7 @@ export interface ChatCompletionResult {
 export interface ChatClient {
     chat: {
         completions: {
-            create(params: ChatCreateParams): Promise<ChatCompletionResult>
+            create(params: ChatCreateParams, options?: { signal?: AbortSignal }): Promise<ChatCompletionResult>
         }
     }
     models?: {
@@ -662,13 +662,14 @@ export class GatewayAIClient implements AIClient {
         }
     }
 
-    async complete(ctx: SessionContext): Promise<string> {
-        const messages = buildCompletionMessages(ctx, this.systemPrompt)
-        return this.runWithFallback((client, model) =>
-            client.chat.completions
-                .create({ model, messages })
+    async complete(ctx: SessionContext, instruction = this.systemPrompt, signal?: AbortSignal): Promise<string> {
+        const messages = buildCompletionMessages(ctx, instruction)
+        return this.runWithFallback((client, model) => {
+            signal?.throwIfAborted()
+            return client.chat.completions
+                .create({ model, messages }, { signal })
                 .then((result) => result.choices[0]?.message?.content ?? '')
-        )
+        })
     }
 
     async summarize(turns: Turn[], prev: SessionSummary): Promise<SessionSummary> {
