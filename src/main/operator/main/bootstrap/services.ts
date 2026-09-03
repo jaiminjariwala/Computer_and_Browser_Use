@@ -38,6 +38,7 @@ import { SessionMemory } from '../memory'
 import { createElectronPermissionProbe, getPermissionSnapshot } from '../permissions'
 import { createModelProvider } from '../providers/model-provider'
 import { deterministicBrowserReason } from '../deterministic-reasoning'
+import type { Environment } from '../environment/types'
 
 /**
  * Service construction for the Computer or Browser Use main process (extracted from the
@@ -107,6 +108,8 @@ export interface OperatorServiceOptions {
      * own Console_Window (the standalone Computer or Browser Use behavior).
      */
     getHostWindow?: () => BrowserWindow | null
+    browserEnvironment?: Environment
+    onBrowserStop?: () => void
 }
 
 export function createOperatorServices(options: OperatorServiceOptions = {}): OperatorServices {
@@ -246,7 +249,7 @@ export function createOperatorServices(options: OperatorServiceOptions = {}): Op
     // A real scriptable web browser (Playwright): DOM-aware perception + click
     // snapping make browser tasks far more reliable than pixel-only control.
     // Constructing it is cheap — Chromium only launches when selected + started.
-    const browserEnvironment = new PlaywrightBrowserEnvironment({})
+    const browserEnvironment = options.browserEnvironment ?? new PlaywrightBrowserEnvironment({})
     const environment = new EnvironmentRouter(
         {
             local: localEnvironment,
@@ -294,6 +297,7 @@ export function createOperatorServices(options: OperatorServiceOptions = {}): Op
 
     const emitters: LoopEmitters = {
         emitState: (view) => {
+            if (environment.id === 'browser' && ['stopped','paused','failed','budget-exhausted'].includes(view.state)) options.onBrowserStop?.()
             emitStateChanged(consoleWindow(), view)
             notifier.onStateChanged(view)
         },

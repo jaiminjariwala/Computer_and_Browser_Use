@@ -38,7 +38,7 @@ describe('deterministic browser reasoning', () => {
     it('opens the URL first and completes after a successful deterministic action', () => {
         expect(deterministicBrowserReason(context(), 'browser')).toMatchObject({
             kind: 'action',
-            action: { kind: 'type', text: 'https://example.com/' },
+            action: { kind: 'key', keys: ['cmd', 'l'] },
             providerId: 'deterministic-local'
         })
 

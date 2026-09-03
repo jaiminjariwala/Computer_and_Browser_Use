@@ -69,7 +69,7 @@ function defaultGenerateId(): string {
  * bounding rectangles. Kept as a string-free function so Playwright serializes
  * it; returns only elements currently visible in the viewport.
  */
-function collectInteractiveElements(): Array<{
+export function collectInteractiveElements(): Array<{
     role: string
     title: string
     x: number
@@ -119,7 +119,7 @@ function collectInteractiveElements(): Array<{
  * main visible copy) so the agent can read page CONTENT from text rather than
  * an image. Capped so the prompt stays bounded.
  */
-function readPageDigest(): { title: string; url: string; text: string } {
+export function readPageDigest(): { title: string; url: string; text: string } {
     const title = document.title || ''
     const url = location.href
     const main =
@@ -135,7 +135,7 @@ function readPageDigest(): { title: string; url: string; text: string } {
  * marker). Paths are omitted because reset, invite, account, and signed-object
  * URLs commonly carry secrets in path segments as well as queries/fragments.
  */
-function minimizePageUrl(value: string): string {
+export function minimizePageUrl(value: string): string {
     try {
         const url = new URL(value)
         if (url.protocol === 'http:' || url.protocol === 'https:') {
@@ -827,7 +827,7 @@ type TabShortcut =
     | { kind: 'index'; index: number }
 
 /** Recognize browser-tab shortcuts that page.keyboard cannot send to Chromium chrome. */
-function classifyTabShortcut(keys: readonly string[]): TabShortcut | null {
+export function classifyTabShortcut(keys: readonly string[]): TabShortcut | null {
     const normalized = new Set(keys.map((key) => key.trim().toLowerCase()))
     const primary =
         normalized.has('cmd') ||

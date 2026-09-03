@@ -49,9 +49,11 @@ export function deterministicBrowserReason(
     )
 
     if (!performed) {
+        const last = context.recentSteps.at(-1)
+        const addressFocused = last?.result?.status === 'success' && last.action?.kind === 'key' && last.action.keys.some(key => key.toLowerCase() === 'l')
         return {
             kind: 'action',
-            action: { kind: 'type', text: route.url },
+            action: addressFocused ? { kind: 'type', text: route.url } : { kind: 'key', keys: ['cmd', 'l'] },
             rationale: `Open ${new URL(route.url).hostname} directly in the sandboxed browser.`,
             providerId: 'deterministic-local',
             model: 'local-function'
