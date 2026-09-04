@@ -62,6 +62,7 @@ export function ensureCopilotTheme(monacoInstance: typeof monaco): void {
             { token: 'attribute.value', foreground: '16A34A' }
         ],
         colors: {
+            'focusBorder': '#a1a1aa',
             'editor.background': '#00000000',
             'editorGutter.background': '#00000000',
             'editor.lineHighlightBackground': '#00000000',

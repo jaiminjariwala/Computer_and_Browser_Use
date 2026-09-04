@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import type { BrowserTabState } from '../../shared/browser'
+import { WorkspaceIcon } from './WorkspaceIcon'
 
 /** React owns the browser chrome; the main process positions the isolated native page. */
 export function BrowserTab({ tab, active }: {tab:BrowserTabState;active:boolean}): React.JSX.Element {
@@ -44,7 +45,7 @@ export function BrowserTab({ tab, active }: {tab:BrowserTabState;active:boolean}
         </form>
         {(error || tab.error) && <p className="project-browser__error" role="alert">{error || tab.error}</p>}
         <div ref={slot} className="project-browser__page">
-            {tab.url === 'about:blank' && <div className="project-empty"><span>◎</span><strong>Start browsing</strong><p>Enter a URL or search above. Your agent uses this same browser.</p></div>}
+            {tab.url === 'about:blank' && <div className="project-empty"><WorkspaceIcon name="browser" /><strong>Start browsing</strong><p>Enter a URL or search above. Your agent uses this same browser.</p></div>}
         </div>
     </div>
 }

@@ -6,6 +6,7 @@ import type { CodeArtifact } from './codePanelContext'
 import type { WorkspaceEntry, WorkspaceFile, WorkspaceRoot, WorkspaceTaskEvent } from '../../shared/workspace'
 import './project-workspace.css'
 import { BrowserTab } from './BrowserTab'
+import { WorkspaceIcon } from './WorkspaceIcon'
 import type { BrowserSnapshot, BrowserTabState } from '../../shared/browser'
 
 type Tab = { id: string; title: string; kind: 'file' | 'generated' | 'review' | 'terminal' | 'browser'; file?: WorkspaceFile; draft?: string; code?: string; language?: string; browser?: BrowserTabState }
@@ -153,9 +154,9 @@ export function ProjectWorkspace({ visible, artifact, onClose, width, onResize, 
         {entry.directory && expanded.has(entry.path) && renderTree(entry.path, depth + 1)}</React.Fragment>
     })
     const tabStrip = <div className={`project-tabs${tabHost ? ' project-tabs--titlebar' : ''}`}><div role="tablist" aria-label="Workspace tabs">{tabs.map(item => <div className={active === item.id ? 'is-active' : ''} key={item.id}>
-            <button role="tab" aria-selected={active === item.id} onClick={() => { setActive(item.id); if (item.browser) setTreeOpen(false) }}>{item.title}{item.file && item.draft !== item.file.content ? ' •' : ''}</button><button aria-label={`Close ${item.title}`} onClick={() => closeTab(item)}>×</button>
+            <button role="tab" aria-selected={active === item.id} onClick={() => { setActive(item.id); if (item.browser) setTreeOpen(false) }}><WorkspaceIcon name={item.kind === 'generated' ? 'file' : item.kind} /><span>{item.title}{item.file && item.draft !== item.file.content ? ' •' : ''}</span></button><button aria-label={`Close ${item.title}`} onClick={() => closeTab(item)}><WorkspaceIcon name="close" /></button>
         </div>)}</div><div className="project-add"><button aria-label="Add workspace tab" aria-expanded={menu} onClick={() => setMenu(value => !value)}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg></button>
-        {menu && <><button className="project-menu-dismiss" aria-label="Dismiss tab menu" onClick={() => setMenu(false)} /><div className="project-menu" role="menu">{(['review', 'terminal', 'browser', 'files'] as const).map(kind => <button role="menuitem" key={kind} onClick={() => void add(kind).catch(fail)}>{kind === 'files' ? '▱  Files' : kind === 'terminal' ? '›_  Terminal' : kind === 'browser' ? '◎  Browser' : '▤  Review'}</button>)}</div></>}</div>
+        {menu && <><button className="project-menu-dismiss" aria-label="Dismiss tab menu" onClick={() => setMenu(false)} /><div className="project-menu" role="menu">{(['review', 'terminal', 'browser', 'files'] as const).map(kind => <button role="menuitem" key={kind} onClick={() => void add(kind).catch(fail)}><WorkspaceIcon name={kind} /><span>{kind[0].toUpperCase() + kind.slice(1)}</span>{(kind === 'browser' || kind === 'files') && <kbd>{kind === 'browser' ? '⌘T' : '⌘P'}</kbd>}</button>)}</div></>}</div>
         {!tabHost && <button className="project-tabs__hide" aria-label="Hide workspace" onClick={onClose}>×</button>}</div>
     return <aside className="project-workspace" aria-label="Project workspace" style={{ display: visible ? 'flex' : 'none', width, maxWidth: 'calc(100vw - 300px)' }}>
         <div className="project-resizer" role="separator" aria-label="Resize project workspace" aria-orientation="vertical" onPointerDown={event => {
@@ -165,7 +166,7 @@ export function ProjectWorkspace({ visible, artifact, onClose, width, onResize, 
         <div className="project-breadcrumb"><span title={root?.path}>{root?.name || 'Workspace'}{tab?.file ? ` / ${tab.file.path.replaceAll('/', ' / ')}` : ''}</span>
         {tab?.file && <button onClick={() => void save().catch(fail)}>Save</button>}
         {tab?.kind === 'generated' && <button onClick={() => setSaveName(`untitled.${tab.language === 'typescript' ? 'ts' : tab.language === 'python' ? 'py' : 'txt'}`)}>Save as file</button>}
-        <button aria-label="Toggle files" onClick={() => setTreeOpen(value => !value)}>▱</button><button onClick={() => void choose().catch(fail)}>Open folder</button></div>
+        <button onClick={() => void choose().catch(fail)}>Open folder</button></div>
         {saveName !== null && tab?.kind === 'generated' && <form className="project-save-as" onSubmit={event => {
             event.preventDefault()
             const path = saveName.trim()
@@ -178,7 +179,7 @@ export function ProjectWorkspace({ visible, artifact, onClose, width, onResize, 
         <div className="project-content"><main className="project-editor">
             {tabs.filter(item => item.kind === 'terminal' || item.kind === 'browser').map(item => <div className="project-surface" style={{ display: active === item.id ? 'flex' : 'none' }} key={item.id}>{item.kind === 'terminal' ? <ProjectTerminal /> : item.browser && <BrowserTab tab={item.browser} active={visible && active === item.id && !menu && !browserObscured} />}</div>)}
             {tab && ['file', 'generated', 'review'].includes(tab.kind) && <Editor height="100%" path={tab.id} theme={MONACO_THEME} beforeMount={ensureCopilotTheme} language={tab.file ? language(tab.file.path) : tab.kind === 'review' ? 'diff' : tab.language} value={tab.file ? tab.draft : tab.code} onChange={value => setTabs(previous => previous.map(item => item.id === tab.id ? { ...item, draft: value ?? '' } : item))} options={{ readOnly: tab.kind !== 'file', minimap: { enabled: false }, automaticLayout: true, fontSize: 13, padding: { top: 16 }, scrollBeyondLastLine: false }} />}
-            {!tab && <div className="project-empty"><span>▱</span><strong>Open a file</strong><p>Select a file from the workspace tree or open a project folder.</p></div>}
-        </main>{treeOpen && <nav className="project-tree" aria-label="Project files"><div><input placeholder="Filter files…" aria-label="Filter loaded files" value={filter} onChange={event => setFilter(event.target.value)} /><button aria-label="Refresh files" onClick={() => { for (const path of expanded) void load(path).catch(fail) }}>↻</button></div>{renderTree()}{tree['']?.length === 0 && <p>No files yet. Ask the agent to build something here.</p>}</nav>}</div>
+            {!tab && <div className="project-empty"><WorkspaceIcon name="files" /><strong>Open a file</strong><p>Select a file from the workspace tree or open a project folder.</p></div>}
+        </main>{treeOpen && <nav className="project-tree" aria-label="Project files"><div className="project-tree__tools"><button aria-label="Refresh files" onClick={() => { for (const path of expanded) void load(path).catch(fail) }}><WorkspaceIcon name="refresh" /></button><button aria-label="Close files" onClick={() => setTreeOpen(false)}><WorkspaceIcon name="close" /></button></div><div><input placeholder="Filter files…" aria-label="Filter loaded files" value={filter} onChange={event => setFilter(event.target.value)} /></div>{renderTree()}{tree['']?.length === 0 && <p>No files yet. Ask the agent to build something here.</p>}</nav>}</div>
     </aside>
 }

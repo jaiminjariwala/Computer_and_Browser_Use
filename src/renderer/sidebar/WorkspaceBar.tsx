@@ -1,4 +1,5 @@
 import React from 'react'
+import { WorkspaceIcon } from './WorkspaceIcon'
 
 function PanelIcon({ side }: { side: 'left' | 'right' | 'bottom' }): React.JSX.Element {
     return (
@@ -40,7 +41,7 @@ export function WorkspaceBar({
             <div className={`workspace-bar__right${projectWidth !== undefined ? ' workspace-bar__right--project' : ''}`} style={projectWidth !== undefined ? {width:projectWidth,maxWidth:'calc(100vw - 300px)'} : undefined}>
             <div className="workspace-bar__tab-host" ref={tabHostRef} />
             <div className="workspace-bar__actions">
-                <button type="button" onClick={onOpenFiles} aria-label="Open project files" title="Open project files (⌘P)">▱</button>
+                <button type="button" onClick={onOpenFiles} aria-label="Open project files" title="Open project files (⌘P)"><WorkspaceIcon name="files" /></button>
                 <button type="button" className={terminalOpen ? 'is-active' : ''} onClick={onToggleTerminal} aria-label="Toggle bottom terminal" title="Toggle bottom terminal (⌘J)">
                     <PanelIcon side="bottom" />
                 </button>
