@@ -1,0 +1,44 @@
+.project-workspace{position:relative;flex:0 0 auto;flex-direction:column;min-width:360px;min-height:0;background:var(--bg,#fff);color:var(--text,#242424);border-left:1px solid #e5e5e8;overflow:visible}
+.project-workspace button,.project-tabs button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;border-radius:8px;padding:7px 10px}
+.project-workspace button:hover,.project-tabs button:hover{background:#8881}
+.project-resizer{position:absolute;left:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:4;touch-action:none}
+.project-tabs{display:flex;align-items:center;gap:4px;padding:4px 8px;min-height:38px;border-bottom:1px solid #8882;min-width:0}
+.project-tabs>[role=tablist]{display:flex;flex:0 1 auto;min-width:0;overflow:auto;gap:4px;scrollbar-width:none;-webkit-app-region:no-drag}
+.project-tabs>[role=tablist]>div{display:flex;align-items:center;white-space:nowrap;border-radius:12px}
+.project-tabs .is-active{background:#8882}
+.project-tabs [role=tab]{max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.project-add{position:relative;flex:0 0 auto}
+.project-tabs .project-add>button{display:grid;place-items:center;width:28px;height:28px;padding:4px;color:#929298;background:transparent;border:0;box-shadow:none}
+.project-tabs .project-add>button:hover{background:var(--bg-subtle,#f7f7f8);color:#73737a}
+.project-add>button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round}
+.project-tabs__hide{margin-left:auto}
+.project-tabs--titlebar{width:100%;height:38px;border:0;padding:4px 5px 4px 8px;-webkit-app-region:drag}
+.workspace-bar .project-tabs button{width:auto;height:28px;padding:4px 8px;display:block;font:inherit;-webkit-app-region:no-drag}
+.workspace-bar .project-tabs [role=tab]{max-width:180px;white-space:nowrap}
+.workspace-bar .project-tabs .project-add>button{width:28px;display:grid;padding:4px}
+.workspace-bar .project-tabs .project-menu button{width:100%;height:auto;padding:12px;text-align:left}
+.workspace-bar .project-tabs .project-menu-dismiss{width:auto;height:auto;padding:0}
+.project-tabs--titlebar .project-menu{top:32px;-webkit-app-region:no-drag}
+.project-menu{position:absolute;right:0;top:42px;width:230px;padding:8px;border:1px solid #8883;background:var(--bg,#fff);border-radius:16px;box-shadow:0 15px 45px #0002;z-index:20}
+.project-menu button{display:block;text-align:left;width:100%;padding:12px}
+.project-menu-dismiss{position:fixed;inset:0;border-radius:0!important;z-index:19;background:transparent!important}
+.project-breadcrumb{display:flex;gap:4px;align-items:center;padding:9px 12px;border-bottom:1px solid #8882;min-height:44px;font-size:12px}
+.project-breadcrumb>span{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#888}
+.project-content{display:flex;flex:1;min-height:0;overflow:hidden}.project-editor{flex:1;min-width:0;position:relative;overflow:hidden}
+.project-tree{flex:0 0 230px;border-left:1px solid #8882;overflow:auto;padding:10px 0}
+.project-tree>div{display:flex;padding:0 10px 10px}.project-tree input{width:100%;min-width:0;border:1px solid #8883;border-radius:9px;background:transparent;color:inherit;padding:8px}
+.project-tree .project-tree__entry{display:flex;gap:8px;width:100%;text-align:left;align-items:center;white-space:nowrap;font-size:13px;border-radius:6px;overflow:hidden;text-overflow:ellipsis}
+.project-tree__entry span{color:#999;flex-shrink:0}.project-tree__entry.is-selected{background:#8882}
+.project-tree p{padding:12px;color:#888;font-size:12px}.project-empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;color:#888}
+.project-empty>span{font-size:40px}.project-empty strong{font-size:19px;color:inherit}.project-empty p{max-width:300px;line-height:1.6}
+.project-error,.project-activity{padding:10px 14px;font-size:12px;background:#8881;display:flex;gap:8px;align-items:center;border-bottom:1px solid #8882;white-space:pre-wrap;max-height:160px;overflow:auto}
+.project-activity>span{flex:1;min-width:0;overflow-wrap:anywhere}.project-activity code{display:block}.project-activity button{background:#8882;white-space:nowrap}
+.project-surface{height:100%;width:100%}.project-terminal{flex:1;overflow:auto;padding:16px;font:12px/1.6 monospace;min-width:0}.project-terminal pre{white-space:pre-wrap;overflow-wrap:anywhere}.project-terminal form{display:flex;gap:8px}.project-terminal input{background:transparent;color:inherit;border:0;outline:none;flex:1;min-width:0;font:inherit}
+.project-preview{display:flex;flex:1;flex-direction:column;min-width:0}.project-preview form{display:flex;padding:10px;gap:8px}.project-preview input{flex:1;min-width:0;border:1px solid #8883;border-radius:8px;background:transparent;color:inherit;padding:8px}.project-preview iframe{flex:1;width:100%;border:0;background:#fff}
+@media(max-width:1100px){.project-tree{flex-basis:175px}.project-breadcrumb{flex-wrap:wrap}}
+.project-browser{display:flex;flex:1;flex-direction:column;min-width:0;min-height:0}
+.project-browser__bar,.project-save-as{display:flex;align-items:center;padding:10px;gap:5px;border-bottom:1px solid var(--border)}
+.project-browser__bar input,.project-save-as input{flex:1;min-width:0;font:inherit;padding:10px 12px;border:1px solid var(--border);border-radius:12px;color:inherit;background:transparent;outline:none}
+.project-browser__bar input:focus{border-color:#aaa}.project-browser__bar button{font-size:20px;padding:5px 7px}
+.project-browser__bar button:disabled{opacity:.3;cursor:default}.project-browser__page{flex:1;min-height:0;position:relative}
+.project-browser__error{margin:0;padding:10px 14px;font-size:12px;overflow-wrap:anywhere;background:var(--bg-subtle)}

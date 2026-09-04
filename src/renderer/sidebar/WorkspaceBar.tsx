@@ -16,13 +16,19 @@ export function WorkspaceBar({
     terminalOpen,
     onToggleNav,
     onToggleRight,
-    onToggleTerminal
+    onToggleTerminal,
+    onOpenFiles,
+    projectWidth,
+    tabHostRef
 }: {
     rightOpen: boolean
     terminalOpen: boolean
     onToggleNav: () => void
     onToggleRight: () => void
     onToggleTerminal: () => void
+    onOpenFiles: () => void
+    projectWidth?: number
+    tabHostRef?: (node: HTMLDivElement | null) => void
 }): React.JSX.Element {
     return (
         <header className="workspace-bar">
@@ -31,13 +37,17 @@ export function WorkspaceBar({
                     <PanelIcon side="left" />
                 </button>
             </div>
+            <div className={`workspace-bar__right${projectWidth !== undefined ? ' workspace-bar__right--project' : ''}`} style={projectWidth !== undefined ? {width:projectWidth,maxWidth:'calc(100vw - 300px)'} : undefined}>
+            <div className="workspace-bar__tab-host" ref={tabHostRef} />
             <div className="workspace-bar__actions">
+                <button type="button" onClick={onOpenFiles} aria-label="Open project files" title="Open project files (⌘P)">▱</button>
                 <button type="button" className={terminalOpen ? 'is-active' : ''} onClick={onToggleTerminal} aria-label="Toggle bottom terminal" title="Toggle bottom terminal (⌘J)">
                     <PanelIcon side="bottom" />
                 </button>
                 <button type="button" className={rightOpen ? 'is-active' : ''} onClick={onToggleRight} aria-label="Toggle Environment panel" title="Toggle Environment panel">
                     <PanelIcon side="right" />
                 </button>
+            </div>
             </div>
         </header>
     )

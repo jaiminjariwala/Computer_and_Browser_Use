@@ -1,4 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { WorkspaceBridge } from '../shared/workspace'
+import type { BrowserWorkspaceBridge } from '../shared/browser'
 import type {
     ConfigStatus,
     GatewayConfigInput,
@@ -120,6 +122,30 @@ const bridge: GlassBridge = {
 }
 
 contextBridge.exposeInMainWorld('glass', bridge)
+const workspaceBridge: WorkspaceBridge = {
+    root: () => ipcRenderer.invoke('project:root'),
+    choose: () => ipcRenderer.invoke('project:choose'),
+    list: (path = '') => ipcRenderer.invoke('project:list', path),
+    read: path => ipcRenderer.invoke('project:read', path),
+    write: file => ipcRenderer.invoke('project:write', file),
+    review: () => ipcRenderer.invoke('project:review'),
+    run: command => ipcRenderer.invoke('project:run', command),
+    stop: () => ipcRenderer.invoke('project:stop'),
+    task: (text, captures) => ipcRenderer.invoke('project:task', { text, captures }),
+    approve: (id, allow) => ipcRenderer.invoke('project:approve', { id, allow }),
+    onTask: cb => subscribe('project:activity', cb)
+}
+contextBridge.exposeInMainWorld('workspace', workspaceBridge)
+const browserWorkspace: BrowserWorkspaceBridge = {
+    list: () => ipcRenderer.invoke('browser:list'), create: () => ipcRenderer.invoke('browser:create'),
+    close: id => ipcRenderer.invoke('browser:close', id),
+    navigate: (id,address) => ipcRenderer.invoke('browser:navigate',{id,address}),
+    action: (id,action) => ipcRenderer.invoke('browser:action',{id,action}),
+    present: (id,bounds) => ipcRenderer.invoke('browser:present',{id,bounds}),
+    onChanged: cb => subscribe('browser:changed',cb),
+    onFocusAddress: cb => subscribe('browser:focus-address',cb)
+}
+contextBridge.exposeInMainWorld('browserWorkspace', browserWorkspace)
 
 // ---------------------------------------------------------------------------
 // Operator bridge (merged Computer or Browser Use engine) — window.operator

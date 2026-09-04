@@ -6,7 +6,7 @@ import { Settings } from './Settings'
 import { ChatSidebar } from './ChatSidebar'
 import { VideoRecorder } from './VideoRecorder'
 import { extractVideoFrames, formatMediaDuration } from './video'
-import { CodePanel } from './CodePanel'
+import { ProjectWorkspace } from './ProjectWorkspace'
 import { CodePanelContext, type CodeArtifact } from './codePanelContext'
 import { primaryCodeBlock } from './codeTheme'
 import { getConfigBridge } from './config-bridge'
@@ -21,7 +21,7 @@ import {
 } from './operator'
 import { renderPdfToImages } from './pdf'
 import { curateForMode, friendlyLabel, type CuratedModels, type ModelAvailability } from './models'
-import { routeIntent } from './intentRouter'
+import { routeIntent, isWorkspaceTask } from './intentRouter'
 import { VoiceBars } from '../voice-lib'
 import { useSmoothDictation as useDictation } from '../voice-lib-v2'
 import {
@@ -113,6 +113,24 @@ export function App(): React.JSX.Element {
             : true
     )
     const [terminalOpen, setTerminalOpen] = useState(false)
+    const [projectOpen, setProjectOpen] = useState(false)
+    const [projectTabHost, setProjectTabHost] = useState<HTMLDivElement | null>(null)
+    const [projectRunning, setProjectRunning] = useState(false)
+    const [workspaceMode, setWorkspaceMode] = useState(false)
+    useEffect(() => {
+        if (!window.workspace) return
+        const dispose = window.workspace.onTask(event => {
+            setProjectRunning(event.running)
+            if (event.running) { setProjectOpen(true); setInspectorArtifact(null); setRightPanelOpen(false) }
+        })
+        const key = (event: KeyboardEvent): void => {
+            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'p') {
+                event.preventDefault(); setProjectOpen(true); setInspectorArtifact(null); setRightPanelOpen(false)
+            }
+        }
+        window.addEventListener('keydown', key)
+        return () => { dispose(); window.removeEventListener('keydown', key) }
+    }, [])
     // User-draggable width of the right code panel (persists while open).
     const [codePanelWidth, setCodePanelWidth] = useState(() =>
         Math.min(820, Math.max(480, Math.round(window.innerWidth * 0.48)))
@@ -185,6 +203,21 @@ export function App(): React.JSX.Element {
     // Track the active chat/task independently so switching modes preserves the
     // selected row in each history rail.
     const [chatSessionId, setChatSessionId] = useState<string | null>(null)
+    useEffect(() => { setWorkspaceMode(false) }, [chatSessionId])
+    useEffect(() => {
+        if (!window.browserWorkspace) return
+        const dispose = window.browserWorkspace.onChanged(state => {
+            if (state.focusId) { setProjectOpen(true); setInspectorArtifact(null); setRightPanelOpen(false); setWorkspaceMode(false) }
+        })
+        const key = (event: KeyboardEvent): void => {
+            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 't') {
+                event.preventDefault()
+                void window.browserWorkspace.create().catch(() => {})
+            }
+        }
+        window.addEventListener('keydown',key)
+        return () => {dispose(); window.removeEventListener('keydown',key)}
+    }, [])
     const [opSessionId, setOpSessionId] = useState<string | null>(null)
     // True while the user has an unused "New task" draft. Operator sessions
     // only exist once a goal is submitted, so the draft is renderer state: it
@@ -849,6 +882,7 @@ export function App(): React.JSX.Element {
     }, [chatSessionId])
 
     const submit = useCallback(() => {
+        if (projectRunning) return
         if (authStatus?.state !== 'signed-in') {
             setState((current) =>
                 setError(current, {
@@ -889,6 +923,19 @@ export function App(): React.JSX.Element {
         // listening after the message goes out. Cancel (rather than stop) so no
         // trailing transcription lands back in the now-cleared field.
         if (dictation.listening) cancelActive()
+
+        const explicitBrowserTask = /\b(open|visit|browse|navigate|search|play|go to)\b/i.test(text) && /\b(browser|youtube|https?|website|google|web|song|music)\b|\b[\w-]+\.(com|org|net|io)\b/i.test(text)
+        if ((workspaceMode && !explicitBrowserTask) || isWorkspaceTask(text)) {
+            setWorkspaceMode(true)
+            setProjectOpen(true)
+            setRightPanelOpen(false)
+            setInspectorArtifact(null)
+            setStaged([])
+            void window.workspace.task(text, hasCaptures ? captures : []).catch((error: unknown) => {
+                setState(s => setError(s, { kind: 'render-failed', message: String(error), recoverable: true }))
+            })
+            return
+        }
 
         // Every attachment reaches the provider as one or more image captures.
         // Video captures retain chronological frame metadata for request labels.
@@ -940,7 +987,7 @@ export function App(): React.JSX.Element {
             const message = err instanceof Error ? err.message : 'Failed to send your message.'
             setState((s) => setError(s, { kind: 'render-failed', message, recoverable: true }))
         })
-    }, [authStatus, draft, staged, stagedEmail, beginOperatorGoal, dictation, cancelActive, markComputerUseForCurrentChat])
+    }, [workspaceMode, projectRunning, authStatus, draft, staged, stagedEmail, beginOperatorGoal, dictation, cancelActive, markComputerUseForCurrentChat])
 
     /** Remove one local attachment before sending. */
     const removeStaged = useCallback((id: string) => {
@@ -1500,6 +1547,7 @@ export function App(): React.JSX.Element {
     ]
 
     const openInspector = (artifact: InspectorArtifact): void => {
+        setProjectOpen(false)
         setCodeArtifact(null)
         setInspectorArtifact(artifact)
         setRightPanelOpen(true)
@@ -1524,15 +1572,19 @@ export function App(): React.JSX.Element {
     return (
         <CodePanelContext.Provider value={codePanelApi}>
             <div
-                className={`glass-app${navOpen ? '' : ' glass-app--navhidden'}${codeArtifact || inspectorArtifact ? ' glass-app--codeopen' : ''}`}
+                className={`glass-app${navOpen ? '' : ' glass-app--navhidden'}${projectOpen || codeArtifact || inspectorArtifact ? ' glass-app--codeopen' : ''}`}
                 style={{ '--chat-nav-width': `${navWidth}px` } as React.CSSProperties}
             >
                 <div className="glass-upper-workspace">
                     <WorkspaceBar
-                        rightOpen={rightPanelOpen}
+                        projectWidth={projectOpen || codeArtifact ? codePanelWidth : undefined}
+                        tabHostRef={setProjectTabHost}
+                        onOpenFiles={() => { setProjectOpen(true); setInspectorArtifact(null); setRightPanelOpen(false) }}
+                        rightOpen={rightPanelOpen || projectOpen || !!codeArtifact || !!inspectorArtifact}
                         terminalOpen={terminalOpen}
                         onToggleNav={() => setNavOpen((open) => !open)}
                         onToggleRight={() => {
+                            if (projectOpen) { setProjectOpen(false); setCodeArtifact(null); return }
                             if (codeArtifact || inspectorArtifact) {
                                 setCodeArtifact(null)
                                 setInspectorArtifact(null)
@@ -1544,7 +1596,7 @@ export function App(): React.JSX.Element {
                         onToggleTerminal={() => setTerminalOpen((open) => !open)}
                     />
                 <div
-                    className={`glass-workspace${rightPanelOpen && !codeArtifact && !inspectorArtifact ? ' glass-workspace--environment-open' : ''}`}
+                    className={`glass-workspace${rightPanelOpen && !projectOpen && !codeArtifact && !inspectorArtifact ? ' glass-workspace--environment-open' : ''}`}
                 >
                 <ChatSidebar
                     items={shownHistory}
@@ -2168,6 +2220,7 @@ export function App(): React.JSX.Element {
                                             <CaretIcon open={showModels} />
                                         </button>
                                     </div>}
+                                    {!operatorMode && <button type="button" className="glass-model" disabled={!signedIn || projectRunning} aria-pressed={workspaceMode} title="Build and edit files in the selected project folder. Click to switch back to chat." onClick={() => { setWorkspaceMode(value => !value); setProjectOpen(true) }}>{workspaceMode ? 'Workspace' : 'Chat'}</button>}
                                     {dictation.supported && (
                                         <button
                                             type="button"
@@ -2187,7 +2240,8 @@ export function App(): React.JSX.Element {
                                             <VoiceBars active={dictation.listening} />
                                         </button>
                                     )}
-                                    {signedIn && (isSubmittable(draft) || staged.length > 0) && (
+                                    {projectRunning && <button type="button" className="glass-send" aria-label="Stop workspace task" title="Stop workspace task (⌘⇧Esc)" onClick={() => void window.workspace.stop()}><StopIcon /></button>}
+                                    {signedIn && !projectRunning && (isSubmittable(draft) || staged.length > 0) && (
                                         <button
                                             type="button"
                                             className="glass-send"
@@ -2210,14 +2264,15 @@ export function App(): React.JSX.Element {
                         />
                     )}
                 </div>
-                {codeArtifact && (
-                    <CodePanel
+                <ProjectWorkspace
+                        tabHost={projectTabHost}
+                        visible={projectOpen || !!codeArtifact}
+                        browserObscured={showSettings}
                         artifact={codeArtifact}
-                        onClose={() => { setCodeArtifact(null); setRightPanelOpen(true) }}
+                        onClose={() => { setCodeArtifact(null); setProjectOpen(false) }}
                         width={codePanelWidth}
                         onResize={setCodePanelWidth}
                     />
-                )}
                 {inspectorArtifact && (
                     <InspectorPanel
                         artifact={inspectorArtifact}
@@ -2226,7 +2281,7 @@ export function App(): React.JSX.Element {
                         onResize={setCodePanelWidth}
                     />
                 )}
-                {rightPanelOpen && !codeArtifact && !inspectorArtifact && (
+                {rightPanelOpen && !projectOpen && !codeArtifact && !inspectorArtifact && (
                     <aside className="environment-sidebar" aria-label="Environment panel">
                         <EnvironmentMenu
                             workspace={taskWorkspaceContext}

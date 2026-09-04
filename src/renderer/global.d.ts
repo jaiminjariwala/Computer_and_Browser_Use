@@ -8,6 +8,8 @@ import type { GlassBridge } from '@shared/types'
 declare global {
     interface Window {
         glass: GlassBridge
+        workspace: import('../shared/workspace').WorkspaceBridge
+        browserWorkspace: import('../shared/browser').BrowserWorkspaceBridge
     }
 }
 

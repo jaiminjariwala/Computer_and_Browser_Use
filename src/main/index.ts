@@ -1,10 +1,10 @@
-import { app, BrowserWindow, ipcMain, globalShortcut, session, nativeImage } from 'electron'
+import { app, BrowserWindow, ipcMain, globalShortcut, session, nativeImage, desktopCapturer, systemPreferences } from 'electron'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { execFile } from 'child_process'
 import { tmpdir } from 'os'
 import { readFile, unlink } from 'fs/promises'
-import type { TerminalCommandResult, TurnCapture, WorkspaceContext } from '@shared/types'
+import type { TurnCapture, WorkspaceContext } from '@shared/types'
 import {
     registerConfigIpc,
     emitCredentialsRequiredIfMissing,
@@ -13,6 +13,11 @@ import {
 } from './config'
 import { registerGitHubAuthIpc } from './github-auth'
 import { ManagedBackendClient } from './managed-backend'
+import { WorkspaceService } from './workspace'
+import { WorkspaceAgent } from './workspace-agent'
+import { registerWorkspaceIpc } from './workspace-ipc'
+import { EmbeddedBrowser, registerBrowserIpc } from './embedded-browser'
+import { EmbeddedBrowserEnvironment } from './embedded-browser-environment'
 import { zeroCostChatReply } from './local-chat'
 import {
     registerGlassIpc,
@@ -132,18 +137,6 @@ async function readWorkspaceContext(): Promise<WorkspaceContext> {
     } catch {
         return empty
     }
-}
-
-function runTerminalCommand(command: string): Promise<TerminalCommandResult> {
-    const cwd = process.cwd()
-    return new Promise((resolve) => {
-        execFile('/bin/zsh', ['-lc', command], { cwd, maxBuffer: 2_000_000, timeout: 60_000 }, (error, stdout, stderr) => {
-            const exitCode = typeof (error as NodeJS.ErrnoException & { code?: number } | null)?.code === 'number'
-                ? Number((error as NodeJS.ErrnoException & { code?: number }).code)
-                : error ? 1 : 0
-            resolve({ command, output: `${stdout}${stderr}`.trimEnd(), exitCode, cwd })
-        })
-    })
 }
 
 /**
@@ -585,6 +578,32 @@ app.whenReady().then(async () => {
             throw new Error('Sign in with GitHub before starting a chat.')
         }
     }
+    const projectFiles = new WorkspaceService(app.getPath('userData'))
+    await projectFiles.init()
+    const workspaceAgent = new WorkspaceAgent(projectFiles,
+        (ctx, prompt, signal) => aiClient.complete(ctx, prompt, signal),
+        event => mainWindow?.webContents.send('project:activity', event),
+        async name => {
+            if (systemPreferences.getMediaAccessStatus('screen') !== 'granted') throw new Error('Allow Screen Recording in macOS settings to inspect the app window.')
+            const sources = await desktopCapturer.getSources({ types: ['window'], thumbnailSize: { width: 1600, height: 1000 } })
+            const source = sources.find(value => value.name.toLowerCase().includes(name.toLowerCase()))
+            if (!source || source.thumbnail.isEmpty()) throw new Error(`No visible ${name} window was found. Open the design or attach a screenshot.`)
+            const size = source.thumbnail.getSize()
+            return { dataUrl: source.thumbnail.toDataURL(), thumbnailUrl: source.thumbnail.resize({ width: 240 }).toDataURL(), rect: { x: 0, y: 0, ...size } }
+        })
+    registerWorkspaceIpc(projectFiles, workspaceAgent, {
+        window: () => mainWindow,
+        authenticate: requireSignedIn,
+        task: async (text, captures) => {
+            const origin = sessionManager.getSession().id
+            const previous = sessionManager.buildContext()
+            const turn = captures.length ? sessionManager.appendUserCaptures(captures, text) : sessionManager.appendUserText(text)
+            emitTurnAppended(mainWindow, turn)
+            const answer = await workspaceAgent.start(text, captures, previous)
+            await deliverAssistant(origin, answer)
+        }
+    })
+    app.on('before-quit', () => workspaceAgent.stop())
     registerGlassIpc({
         getSidebarWindow: () => mainWindow,
         onSendMessage: async (text) => {
@@ -659,7 +678,7 @@ app.whenReady().then(async () => {
         // Email connector: read the selected Mail/Outlook message on demand.
         onReadSelectedMail: (source) => readSelectedMail(source),
         getWorkspaceContext: () => readWorkspaceContext(),
-        onRunTerminalCommand: runTerminalCommand,
+        onRunTerminalCommand: command => projectFiles.run(command),
         getManagedAccountStatus: () => managedBackend!.status(),
         onStartPlusCheckout: () => managedBackend!.createCheckout(),
         onOpenBillingPortal: () => managedBackend!.openBillingPortal(),
@@ -758,7 +777,11 @@ app.whenReady().then(async () => {
     // than a separate Console_Window. The engine owns its own (isolated)
     // provider config + session store and drives the Control_Indicator overlay
     // and the sandboxed-desktop noVNC view through its own Window Manager.
-    const operatorServices = createOperatorServices({ getHostWindow: () => mainWindow })
+    const embeddedBrowser = new EmbeddedBrowser(() => mainWindow)
+    registerBrowserIpc(embeddedBrowser, () => mainWindow)
+    const embeddedEnvironment = new EmbeddedBrowserEnvironment(embeddedBrowser)
+    const operatorServices = createOperatorServices({ getHostWindow: () => mainWindow, browserEnvironment: embeddedEnvironment, onBrowserStop: () => embeddedEnvironment.cancel() })
+    app.on('before-quit', () => embeddedBrowser.dispose())
     const handleStartGoal = createStartGoalHandler(operatorServices)
     const operatorIpc = wireOperatorIpc(operatorServices, handleStartGoal)
     disposeOperatorIpc = operatorIpc.disposeOperatorIpc
@@ -876,7 +899,11 @@ app.whenReady().then(async () => {
     // Emergency_Stop hotkey (⌘⇧Esc). Registering through the Safety Controller
     // records the result; a failed registration blocks starting an operator
     // task while the on-screen fallback stays available (Req 7.7, 7.8).
-    operatorHotkey = createEmergencyStopManager(operatorServices.safety)
+    operatorHotkey = createEmergencyStopManager({ onEmergencyStop: () => {
+        workspaceAgent.stop()
+        embeddedEnvironment.cancel()
+        operatorServices.safety.onEmergencyStop()
+    } })
     operatorServices.safety.registerHotkey(operatorHotkey)
 
     app.on('activate', () => {

@@ -17,6 +17,15 @@ export type RoutedIntent =
     | { mode: 'copilot' }
     | { mode: 'operator'; environment: 'browser' | 'local' }
 
+/** Creation requests belong to the in-app project runner, never an external IDE. */
+export function isWorkspaceTask(text: string): boolean {
+    const t = text.trim().toLowerCase()
+    if (/^(explain|what|why|how (does|do|to)|tell me|describe)\b/.test(t)) return false
+    if (/\b(open|launch|install)\s+(blender|figma)\b/.test(t)) return true
+    return /\b(build|create|implement|develop|fix|edit|write|animate|make|convert|turn)\b/.test(t)
+        && /\b(app|application|website|web\s*app|project|component|swift|react|code|script|blender|3d|animation|figma|files?)\b/.test(t)
+}
+
 /** Words that begin an advice/question (answer it, do not act). */
 const QUESTION_STARTS =
     /^(how|what|what's|whats|why|when|where|who|which|whom|whose|is|are|am|do|does|did|can|could|should|would|will|may|might|explain|describe|summarize|summarise|tell me|show me how|help me understand|difference between|compare|review|analyze|analyse|suggest|recommend)\b/
