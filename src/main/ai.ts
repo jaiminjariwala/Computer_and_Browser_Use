@@ -663,7 +663,13 @@ export class GatewayAIClient implements AIClient {
     }
 
     async complete(ctx: SessionContext, instruction = this.systemPrompt, signal?: AbortSignal): Promise<string> {
-        const messages = buildCompletionMessages(ctx, instruction)
+        const assembled = buildCompletionMessages(ctx, instruction)
+        // Action runners need one authoritative instruction block. Some
+        // OpenAI-compatible providers only retain the last system message.
+        const messages = instruction === this.systemPrompt ? assembled : [
+            { role: 'system' as const, content: assembled.filter(message => message.role === 'system').map(message => message.content).join('\n\n') },
+            ...assembled.filter(message => message.role !== 'system')
+        ]
         return this.runWithFallback((client, model) => {
             signal?.throwIfAborted()
             return client.chat.completions

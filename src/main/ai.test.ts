@@ -331,6 +331,15 @@ describe('mergeSummary', () => {
 // --- GatewayAIClient --------------------------------------------------------
 
 describe('GatewayAIClient', () => {
+    it('keeps custom action instructions and summary in one system message', async () => {
+        const { client, calls } = makeFakeClient('{"tool":"done"}')
+        const ai = new GatewayAIClient(makeClientOptions(client))
+        await ai.complete({ summary: emptySummary, recentTurns: [userTurn('t1', 'open Blender')] }, 'Return one JSON action.')
+        const system = calls[0].messages.filter(message => message.role === 'system')
+        expect(system).toHaveLength(1)
+        expect(system[0].content).toContain('Return one JSON action.')
+        expect(system[0].content).toContain(formatSummary(emptySummary))
+    })
     it('uses the publisher-managed provider before developer-local credentials', async () => {
         const managed = makeFakeClient('managed answer')
         const local = makeFakeClient('local answer')
