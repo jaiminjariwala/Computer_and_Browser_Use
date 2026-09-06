@@ -21,7 +21,7 @@ export type RoutedIntent =
 export function isWorkspaceTask(text: string): boolean {
     const t = text.trim().toLowerCase()
     if (/^(explain|what|why|how (does|do|to)|tell me|describe)\b/.test(t)) return false
-    if (/\b(open|launch|install)\s+(blender|figma)\b/.test(t)) return true
+    if (/\b(open|launch|install|download)\s+(?:(?:the|latest|stable|version|of|desktop|app)\s+)*(blender|figma)\b/.test(t)) return true
     return /\b(build|create|implement|develop|fix|edit|write|animate|make|convert|turn)\b/.test(t)
         && /\b(app|application|website|web\s*app|project|component|swift|react|code|script|blender|3d|animation|figma|files?)\b/.test(t)
 }

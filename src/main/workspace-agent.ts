@@ -71,11 +71,22 @@ export class WorkspaceAgent {
         }
         this.emit({ running: true, message: 'Working in your project folder. Use Stop to cancel.' })
         try {
+            let invalidReplies = 0
             for (let step = 0; step < 40; step++) {
                 signal.throwIfAborted()
                 const answer = await this.complete(ctx, WORKSPACE_INSTRUCTION, signal)
                 signal.throwIfAborted()
-                const action = parseWorkspaceAction(answer)
+                let action: Action
+                try {
+                    action = parseWorkspaceAction(answer)
+                    invalidReplies = 0
+                } catch {
+                    if (++invalidReplies > 2) throw new Error('The model is returning advice instead of tool actions. No action from those replies was executed. Check the model connection and retry.')
+                    this.emit({ running: true, message: 'The model returned instructions instead of an action. Retrying the action format. Use Stop to cancel.' })
+                    ctx.recentTurns.push({ id: randomUUID(), role: 'assistant', text: answer.slice(0, 8000), status: 'ok', createdAt: new Date().toISOString() })
+                    ctx.recentTurns.push({ id: randomUUID(), role: 'user', text: 'Protocol error: return exactly one JSON tool action from the provided tool list, not advice or Markdown. If unable to act, use the done tool and explain the blocker. Do not claim an action was performed.', status: 'ok', createdAt: new Date().toISOString() })
+                    continue
+                }
                 if (action.tool === 'done') return action.message || 'Task finished.'
                 this.emit({ running: true, message: action.message || `Working: ${action.tool}` })
                 let result: unknown
