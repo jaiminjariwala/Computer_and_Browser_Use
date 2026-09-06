@@ -86,6 +86,35 @@ body {
 .workspace-bar__right--project .workspace-bar__tab-host { display:block; }
 .workspace-bar__actions { flex:0 0 auto; }
 .workspace-bar:has(.project-tabs) { z-index:20; }
+/* With a docked sidebar/workspace, chat uses the otherwise empty title row.
+   Only the actual toolbar controls intercept input in that row. */
+@media (min-width: 721px) {
+    .glass-app--codeopen:not(.glass-app--navhidden) .glass-workspace { overflow: visible; }
+    .glass-app--codeopen:not(.glass-app--navhidden) .glass-main { margin-top: -38px; }
+    .glass-app--codeopen:not(.glass-app--navhidden) .glass-conversation { padding-top: 8px; }
+    .glass-app--codeopen:not(.glass-app--navhidden) .workspace-bar {
+        background: transparent;
+        pointer-events: none;
+        -webkit-app-region: no-drag;
+    }
+    .glass-app--codeopen:not(.glass-app--navhidden) .workspace-bar__left,
+    .glass-app--codeopen:not(.glass-app--navhidden) .workspace-bar__right {
+        pointer-events: auto;
+        -webkit-app-region: drag;
+        background: var(--app-bg);
+        height: 38px;
+    }
+}
+.glass-app:not(.glass-app--navhidden) .workspace-bar::before {
+    content: '';
+    position: absolute;
+    left: var(--chat-nav-width, 296px);
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--border);
+    pointer-events: none;
+}
 .workspace-bar__title {
     max-width: min(420px, 40vw);
     overflow: hidden;
@@ -129,7 +158,7 @@ body {
     overflow: hidden;
     position: relative;
     background: var(--card-bg);
-    border-top: 1px solid var(--border);
+    border-top: 0;
     border-left: 0;
     border-radius: 0;
 }

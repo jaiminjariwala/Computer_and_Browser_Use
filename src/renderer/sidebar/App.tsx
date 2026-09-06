@@ -925,7 +925,8 @@ export function App(): React.JSX.Element {
         if (dictation.listening) cancelActive()
 
         const explicitBrowserTask = /\b(open|visit|browse|navigate|search|play|go to)\b/i.test(text) && /\b(browser|youtube|https?|website|google|web|song|music)\b|\b[\w-]+\.(com|org|net|io)\b/i.test(text)
-        if ((workspaceMode && !explicitBrowserTask) || isWorkspaceTask(text)) {
+        const workspaceFollowUp = workspaceMode && /^(continue|keep going|fix (it|this|that)|make (it|this|that)|change (it|this|that)|add (it|this|that))\b/i.test(text.trim())
+        if ((workspaceFollowUp && !explicitBrowserTask) || isWorkspaceTask(text)) {
             setWorkspaceMode(true)
             setProjectOpen(true)
             setRightPanelOpen(false)
@@ -2220,7 +2221,6 @@ export function App(): React.JSX.Element {
                                             <CaretIcon open={showModels} />
                                         </button>
                                     </div>}
-                                    {!operatorMode && <button type="button" className="glass-model" disabled={!signedIn || projectRunning} aria-pressed={workspaceMode} title="Build and edit files in the selected project folder. Click to switch back to chat." onClick={() => { setWorkspaceMode(value => !value); setProjectOpen(true) }}>{workspaceMode ? 'Workspace' : 'Chat'}</button>}
                                     {dictation.supported && (
                                         <button
                                             type="button"

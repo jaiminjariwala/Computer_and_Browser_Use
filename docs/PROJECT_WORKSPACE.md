@@ -16,7 +16,7 @@ Native pages hide when their tab is hidden or an app dialog/menu covers them. Cm
 
 ## Building inside the app
 
-Creation requests such as “Build a React app” or “Open Blender and create a rocket animation” route to the project runner. The composer switches to Workspace mode for follow-ups; click **Workspace** to return to Chat. A new conversation resets this mode. Existing browser/computer automation remains available through the existing operator path.
+Creation requests such as “Build a React app” or “Open Blender and create a rocket animation” route automatically to the project runner. There is no Chat/Workspace toggle. Short continuation requests such as “continue” and “fix this” retain project context; ordinary questions return to chat. A new conversation resets this context. Existing browser/computer automation remains available through the existing operator path.
 
 The runner uses the configured managed/provider model and a bounded JSON action loop. It can list/read/write workspace files, request commands, open supported apps, and capture visible Figma/Blender windows. It receives recent conversation text and current attached design images. File writes automatically open in the right panel.
 
