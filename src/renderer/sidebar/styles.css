@@ -151,6 +151,8 @@ body {
 .workspace-bar button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.65; }
 
 .glass-main {
+    container-type: inline-size;
+    container-name: chat-pane;
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
@@ -1407,6 +1409,11 @@ body.is-resizing-terminal {
     gap: 6px;
     transform: translateY(-50%);
     pointer-events: none;
+}
+
+/* Hide turn markers when panels or window resizing leave little chat space. */
+@container chat-pane (max-width: 850px) {
+    .conversation-minimap { display: none; }
 }
 
 .conversation-minimap__marker {
