@@ -506,6 +506,7 @@ export function createGatewayClient(config: GatewayConfig, apiKey: string): Chat
 }
 
 export interface AIClientOptions {
+    textOnly?: boolean
     /** Resolve the current gateway config (`baseURL`, `model`). */
     getConfig: () => Promise<GatewayConfig>
     /** Resolve the current API key, or `null` when none is stored. */
@@ -558,7 +559,7 @@ export class GatewayAIClient implements AIClient {
     } | null>
     private readonly onUserFacts?: (facts: string[]) => void
 
-    constructor(options: AIClientOptions) {
+    constructor(private readonly options: AIClientOptions) {
         this.getConfig = options.getConfig
         this.getApiKey = options.getApiKey
         this.createClient = options.createClient ?? createGatewayClient
@@ -582,6 +583,7 @@ export class GatewayAIClient implements AIClient {
             managed = this.getManagedProvider ? await this.getManagedProvider() : null
         } catch (error) {
             logProviderFailure('managed backend session', error)
+            throw error
         }
         if (managed) {
             const client = this.createClient(
@@ -592,6 +594,8 @@ export class GatewayAIClient implements AIClient {
                 return await this.run(() => op(client, managed.model))
             } catch (error) {
                 logProviderFailure('managed backend', error)
+                // Never bypass subscription/quota failures through local credentials.
+                throw error
             }
         }
         try {
@@ -664,6 +668,9 @@ export class GatewayAIClient implements AIClient {
 
     async complete(ctx: SessionContext, instruction = this.systemPrompt, signal?: AbortSignal): Promise<string> {
         const assembled = buildCompletionMessages(ctx, instruction)
+        if (this.options.textOnly && assembled.some(message => Array.isArray(message.content) && message.content.some(part => part.type === 'image_url'))) {
+            throw new Error('The local starter model supports text and code, not screenshots or video. Start a text-only chat to continue.')
+        }
         // Action runners need one authoritative instruction block. Some
         // OpenAI-compatible providers only retain the last system message.
         const messages = instruction === this.systemPrompt ? assembled : [

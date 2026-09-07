@@ -18,8 +18,10 @@ type Message struct {
 }
 
 type Request struct {
-	Model    string    `json:"model,omitempty"`
-	Messages []Message `json:"messages"`
+	Model      string            `json:"model,omitempty"`
+	Messages   []Message         `json:"messages"`
+	Tools      []json.RawMessage `json:"tools,omitempty"`
+	ToolChoice json.RawMessage   `json:"tool_choice,omitempty"`
 }
 
 type TokenUsage struct {
@@ -29,10 +31,11 @@ type TokenUsage struct {
 }
 
 type Result struct {
-	Provider string     `json:"provider"`
-	Model    string     `json:"model"`
-	Text     string     `json:"text"`
-	Usage    TokenUsage `json:"token_usage"`
+	Provider  string          `json:"provider"`
+	Model     string          `json:"model"`
+	Text      string          `json:"text"`
+	Usage     TokenUsage      `json:"token_usage"`
+	ToolCalls json.RawMessage `json:"tool_calls,omitempty"`
 }
 
 type Provider interface {
@@ -97,7 +100,14 @@ func (p *CompatibleProvider) Name() string  { return p.provider }
 func (p *CompatibleProvider) Model() string { return p.model }
 
 func (p *CompatibleProvider) Complete(ctx context.Context, input Request) (Result, error) {
-	body, err := json.Marshal(map[string]any{"model": p.model, "messages": input.Messages})
+	requestBody := map[string]any{"model": p.model, "messages": input.Messages, "max_tokens": 4096}
+	if len(input.Tools) > 0 {
+		requestBody["tools"] = input.Tools
+	}
+	if len(input.ToolChoice) > 0 {
+		requestBody["tool_choice"] = input.ToolChoice
+	}
+	body, err := json.Marshal(requestBody)
 	if err != nil {
 		return Result{}, err
 	}
@@ -108,8 +118,7 @@ func (p *CompatibleProvider) Complete(ctx context.Context, input Request) (Resul
 	req.Header.Set("Authorization", "Bearer "+p.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 	if p.provider == "openrouter" {
-		req.Header.Set("HTTP-Referer", "https://computer-or-browser-use.app")
-		req.Header.Set("X-Title", "Computer or Browser Use")
+		req.Header.Set("X-Title", "Codex Lite")
 	}
 	res, err := p.client.Do(req)
 	if err != nil {
@@ -127,7 +136,8 @@ func (p *CompatibleProvider) Complete(ctx context.Context, input Request) (Resul
 		Model   string `json:"model"`
 		Choices []struct {
 			Message struct {
-				Content string `json:"content"`
+				Content   string          `json:"content"`
+				ToolCalls json.RawMessage `json:"tool_calls"`
 			} `json:"message"`
 		} `json:"choices"`
 		Usage struct {
@@ -139,7 +149,13 @@ func (p *CompatibleProvider) Complete(ctx context.Context, input Request) (Resul
 	if err := json.Unmarshal(payload, &decoded); err != nil {
 		return Result{}, fmt.Errorf("decode provider response: %w", err)
 	}
-	if len(decoded.Choices) == 0 || strings.TrimSpace(decoded.Choices[0].Message.Content) == "" {
+	if len(decoded.Choices) == 0 {
+		return Result{}, errors.New("provider returned an empty answer")
+	}
+	message := decoded.Choices[0].Message
+	var calls []json.RawMessage
+	_ = json.Unmarshal(message.ToolCalls, &calls)
+	if strings.TrimSpace(message.Content) == "" && len(calls) == 0 {
 		return Result{}, errors.New("provider returned an empty answer")
 	}
 	model := decoded.Model
@@ -147,9 +163,10 @@ func (p *CompatibleProvider) Complete(ctx context.Context, input Request) (Resul
 		model = p.model
 	}
 	return Result{
-		Provider: p.provider,
-		Model:    model,
-		Text:     decoded.Choices[0].Message.Content,
+		Provider:  p.provider,
+		Model:     model,
+		Text:      decoded.Choices[0].Message.Content,
+		ToolCalls: message.ToolCalls,
 		Usage: TokenUsage{
 			InputTokens:  decoded.Usage.PromptTokens,
 			OutputTokens: decoded.Usage.CompletionTokens,

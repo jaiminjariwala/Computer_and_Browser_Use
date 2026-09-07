@@ -331,6 +331,18 @@ describe('mergeSummary', () => {
 // --- GatewayAIClient --------------------------------------------------------
 
 describe('GatewayAIClient', () => {
+    it('does not bypass a managed access failure using local credentials', async () => {
+        const local = makeFakeClient('local answer')
+        const ai = new GatewayAIClient({
+            getConfig: async () => config,
+            getApiKey: async () => 'local-key',
+            getManagedProvider: async () => { throw new Error('Desktop access required') },
+            createClient: () => local.client
+        })
+        await expect(ai.complete({ summary: emptySummary, recentTurns: [userTurn('t1', 'hello')] }))
+            .rejects.toThrow('Desktop access required')
+        expect(local.calls).toHaveLength(0)
+    })
     it('keeps custom action instructions and summary in one system message', async () => {
         const { client, calls } = makeFakeClient('{"tool":"done"}')
         const ai = new GatewayAIClient(makeClientOptions(client))

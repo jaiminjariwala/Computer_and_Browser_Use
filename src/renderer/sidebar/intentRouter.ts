@@ -20,6 +20,9 @@ export type RoutedIntent =
 /** Creation requests belong to the in-app project runner, never an external IDE. */
 export function isWorkspaceTask(text: string): boolean {
     const t = text.trim().toLowerCase()
+    // Code answers are chat, not filesystem/command tasks. The response viewer
+    // automatically opens fenced code in the right-hand panel.
+    if (isCodeQuestion(t)) return false
     if (/^(explain|what|why|how (does|do|to)|tell me|describe)\b/.test(t)) return false
     if (/\b(open|launch|install|download)\s+(?:(?:the|latest|stable|version|of|desktop|app)\s+)*(blender|figma)\b/.test(t)) return true
     return /\b(build|create|implement|develop|fix|edit|write|animate|make|convert|turn)\b/.test(t)
@@ -45,6 +48,7 @@ const LOCAL_SIGNALS =
 export function routeIntent(text: string, hasImages: boolean): RoutedIntent {
     const t = text.trim().toLowerCase()
     if (t.length === 0) return { mode: 'copilot' }
+    if (isCodeQuestion(t)) return { mode: 'copilot' }
 
     // A screenshot/file attached means "read this and tell me" — advise, never act.
     if (hasImages) return { mode: 'copilot' }
@@ -60,6 +64,12 @@ export function routeIntent(text: string, hasImages: boolean): RoutedIntent {
 
     // Anything else (a bare question, a statement) → copilot, the safe default.
     return { mode: 'copilot' }
+}
+
+export function isCodeQuestion(text: string): boolean {
+    if (/\b(in (this|my|the) (project|repo|repository|file)|save (it|this|the code)|edit (this|my|the) file)\b/i.test(text)) return false
+    return /\b(leetcode|rotting oranges|code example|code snippet)\b/i.test(text)
+        || /\b(give|show|write|explain)\b.*\b(python|javascript|typescript|java|c\+\+|code|algorithm)\b/i.test(text)
 }
 
 /** Choose the operator environment: local when it targets the Mac, else browser. */

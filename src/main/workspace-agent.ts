@@ -3,7 +3,7 @@ import type { SessionContext, TurnCapture } from '../shared/types'
 import type { WorkspaceTaskEvent } from '../shared/workspace'
 import type { WorkspaceService } from './workspace'
 
-export const WORKSPACE_INSTRUCTION = `You are the coding and creation agent inside Computer or Browser Use.
+export const WORKSPACE_INSTRUCTION = `You are the coding and creation agent inside Codex Lite.
 Complete the user's requested project inside the selected workspace. Never open Cursor or another editor.
 You can create web apps, Swift source projects, scripts, and Blender scenes using files and commands.
 Return exactly one JSON object per turn, no fences. Available actions:
