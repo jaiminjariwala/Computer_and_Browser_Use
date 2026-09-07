@@ -1,0 +1,29 @@
+import { afterEach, expect, it, vi } from 'vitest'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { LocalAI } from './local-ai'
+
+const paths: string[] = []
+afterEach(async () => { await Promise.all(paths.splice(0).map(path => rm(path,{recursive:true,force:true}))) })
+async function service(): Promise<LocalAI> {
+    const path = await mkdtemp(join(tmpdir(),'codex-lite-test-')); paths.push(path)
+    return new LocalAI(path)
+}
+it('refuses inference before setup completes', async () => {
+    await expect((await service()).provider()).rejects.toThrow('prepare')
+})
+it('persists pause so launch does not silently restart a download', async () => {
+    const ai = await service()
+    await ai.pause()
+    await ai.start()
+    expect(ai.status().phase).toBe('paused')
+})
+it('deduplicates concurrent startup requests and reports preparation errors', async () => {
+    const ai = await service()
+    const prepare = vi.spyOn(ai as unknown as {prepare(signal:AbortSignal):Promise<void>},'prepare')
+        .mockRejectedValue(new Error('Download interrupted'))
+    await Promise.all([ai.start(),ai.start(),ai.start()])
+    expect(prepare).toHaveBeenCalledTimes(1)
+    expect(ai.status()).toMatchObject({phase:'error',message:'Download interrupted'})
+})
