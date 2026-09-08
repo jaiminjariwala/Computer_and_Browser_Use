@@ -17,6 +17,7 @@ import (
 )
 
 type Stripe struct {
+	checkoutURL     string
 	secretKey       string
 	webhookSecret   string
 	plusPriceID     string
@@ -28,6 +29,7 @@ type Stripe struct {
 }
 
 type Config struct {
+	CheckoutURL     string
 	SecretKey       string
 	WebhookSecret   string
 	PlusPriceID     string
@@ -37,8 +39,9 @@ type Config struct {
 }
 
 type Checkout struct {
-	ID  string `json:"id"`
-	URL string `json:"url"`
+	ClientSecret string `json:"client_secret,omitempty"`
+	ID           string `json:"id"`
+	URL          string `json:"url"`
 }
 
 func NewStripe(config Config, client *http.Client) *Stripe {
@@ -46,7 +49,8 @@ func NewStripe(config Config, client *http.Client) *Stripe {
 		client = &http.Client{Timeout: 20 * time.Second}
 	}
 	return &Stripe{
-		secretKey: config.SecretKey, webhookSecret: config.WebhookSecret,
+		checkoutURL: config.CheckoutURL,
+		secretKey:   config.SecretKey, webhookSecret: config.WebhookSecret,
 		plusPriceID: config.PlusPriceID, successURL: config.SuccessURL,
 		cancelURL: config.CancelURL, portalReturnURL: config.PortalReturnURL,
 		client: client, now: time.Now,
@@ -61,26 +65,74 @@ func (s *Stripe) CreateCheckout(ctx context.Context, userID, email string) (Chec
 	if s.secretKey == "" || s.plusPriceID == "" {
 		return Checkout{}, errors.New("stripe checkout is not configured")
 	}
+	// Refuse stale $24.99 configuration rather than charge a different price
+	// from the $1/month offer shown in the desktop app.
+	if err := s.validateAccessPrice(ctx); err != nil {
+		return Checkout{}, err
+	}
 	values := url.Values{
-		"mode":                    {"subscription"},
-		"success_url":             {s.successURL + "?session_id={CHECKOUT_SESSION_ID}"},
-		"cancel_url":              {s.cancelURL},
-		"client_reference_id":     {userID},
-		"line_items[0][price]":    {s.plusPriceID},
-		"line_items[0][quantity]": {"1"},
-		"metadata[user_id]":       {userID},
+		"mode":                                 {"subscription"},
+		"success_url":                          {s.successURL + "?session_id={CHECKOUT_SESSION_ID}"},
+		"cancel_url":                           {s.cancelURL},
+		"client_reference_id":                  {userID},
+		"line_items[0][price]":                 {s.plusPriceID},
+		"line_items[0][quantity]":              {"1"},
+		"metadata[user_id]":                    {userID},
+		"subscription_data[metadata][user_id]": {userID},
 	}
 	if email != "" {
 		values.Set("customer_email", email)
+	}
+	if s.checkoutURL != "" {
+		values.Del("success_url")
+		values.Del("cancel_url")
+		values.Set("ui_mode", "elements")
+		values.Set("return_url", s.checkoutURL+"/return")
 	}
 	var output Checkout
 	if err := s.postForm(ctx, "/v1/checkout/sessions", values, &output); err != nil {
 		return Checkout{}, err
 	}
+	if s.checkoutURL != "" && output.ClientSecret != "" {
+		output.URL = s.checkoutURL + "#" + url.QueryEscape(output.ClientSecret)
+		output.ClientSecret = ""
+	}
 	if output.ID == "" || output.URL == "" {
 		return Checkout{}, errors.New("stripe returned an incomplete checkout session")
 	}
 	return output, nil
+}
+
+func (s *Stripe) validateAccessPrice(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.stripe.com/v1/prices/"+url.PathEscape(s.plusPriceID), nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+s.secretKey)
+	res, err := s.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return errors.New("could not verify desktop access price")
+	}
+	var price struct {
+		Active     bool   `json:"active"`
+		Currency   string `json:"currency"`
+		UnitAmount int64  `json:"unit_amount"`
+		Recurring  struct {
+			Interval      string `json:"interval"`
+			IntervalCount int    `json:"interval_count"`
+		} `json:"recurring"`
+	}
+	if err := json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(&price); err != nil {
+		return err
+	}
+	if !price.Active || price.Currency != "usd" || price.UnitAmount != 100 || price.Recurring.Interval != "month" || price.Recurring.IntervalCount != 1 {
+		return errors.New("configure an active USD $1/month Stripe price before opening checkout")
+	}
+	return nil
 }
 
 func (s *Stripe) CreatePortal(ctx context.Context, customerID string) (Checkout, error) {
@@ -103,6 +155,7 @@ func (s *Stripe) postForm(ctx context.Context, path string, values url.Values, o
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Stripe-Version", "2026-08-26.dahlia")
 	req.Header.Set("Authorization", "Bearer "+s.secretKey)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	res, err := s.client.Do(req)

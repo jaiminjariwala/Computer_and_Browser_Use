@@ -40,12 +40,17 @@ type StripeBilling interface {
 }
 
 type Config struct {
-	PublicAppURL     string
-	FreeMonthlyUnits int64
-	PlusMonthlyUnits int64
+	StripePublishableKey string
+	GitHubClientID       string
+	GitHubClientSecret   string
+	GitHubRedirectURL    string
+	PublicAppURL         string
+	FreeMonthlyUnits     int64
+	PlusMonthlyUnits     int64
 }
 
 type Server struct {
+	oauth    oauthPending
 	config   Config
 	github   GitHubVerifier
 	sessions SessionManager
@@ -65,9 +70,15 @@ func New(config Config, github GitHubVerifier, sessions SessionManager, data sto
 		logger = slog.Default()
 	}
 	server := &Server{config: config, github: github, sessions: sessions, store: data, ai: router, stripe: stripe, logger: logger}
+	server.oauth.entries = make(map[string]*oauthAttempt)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", server.health)
+	mux.HandleFunc("GET /checkout", server.checkoutPage)
+	mux.HandleFunc("GET /checkout/return", server.checkoutReturn)
 	mux.HandleFunc("POST /v1/auth/github", server.githubExchange)
+	mux.HandleFunc("POST /v1/auth/github/start", server.oauthStart)
+	mux.HandleFunc("POST /v1/auth/github/poll", server.oauthPoll)
+	mux.HandleFunc("GET /v1/auth/github/callback", server.oauthCallback)
 	mux.Handle("GET /v1/me", server.authenticate(http.HandlerFunc(server.me)))
 	mux.Handle("GET /v1/usage", server.authenticate(http.HandlerFunc(server.usage)))
 	mux.Handle("POST /v1/chat", server.authenticate(http.HandlerFunc(server.chat)))
@@ -176,14 +187,20 @@ func (s *Server) chatCompletions(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("X-Managed-AI-Provider", result.Provider)
 	w.Header().Set("X-Managed-Usage-Remaining", fmt.Sprintf("%d", usage.RemainingUnits))
+	assistantMessage := map[string]any{"role": "assistant", "content": result.Text}
+	finishReason := "stop"
+	if len(result.ToolCalls) > 0 && string(result.ToolCalls) != "null" && string(result.ToolCalls) != "[]" {
+		assistantMessage["tool_calls"] = result.ToolCalls
+		finishReason = "tool_calls"
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"id":     "managed-" + user.ID,
 		"object": "chat.completion",
 		"model":  result.Model,
 		"choices": []map[string]any{{
 			"index":         0,
-			"message":       map[string]string{"role": "assistant", "content": result.Text},
-			"finish_reason": "stop",
+			"message":       assistantMessage,
+			"finish_reason": finishReason,
 		}},
 		"usage": map[string]int64{
 			"prompt_tokens":     result.Usage.InputTokens,
@@ -194,6 +211,9 @@ func (s *Server) chatCompletions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) complete(ctx context.Context, user domain.User, input ai.Request) (ai.Result, domain.Usage, int, string) {
+	if user.Plan != domain.PlanPlus || user.SubscriptionStatus != "active" {
+		return ai.Result{}, domain.Usage{}, http.StatusPaymentRequired, "Desktop access requires the $1/month subscription"
+	}
 	usage, err := s.currentUsage(user, time.Now())
 	if err != nil {
 		return ai.Result{}, domain.Usage{}, http.StatusInternalServerError, "Could not load usage"
@@ -204,7 +224,7 @@ func (s *Server) complete(ctx context.Context, user domain.User, input ai.Reques
 	result, err := s.ai.Complete(ctx, input)
 	if err != nil {
 		s.logger.Error("managed AI request failed", "user_id", user.ID, "error", err)
-		return ai.Result{}, usage, http.StatusServiceUnavailable, "The AI service is temporarily unavailable"
+		return ai.Result{}, usage, http.StatusServiceUnavailable, "Free AI providers are unavailable or their shared quota is exhausted. Please try again later; the app fee does not guarantee model availability."
 	}
 	units := result.Usage.TotalTokens
 	if units <= 0 {
@@ -219,6 +239,10 @@ func (s *Server) complete(ctx context.Context, user domain.User, input ai.Reques
 
 func (s *Server) checkout(w http.ResponseWriter, r *http.Request) {
 	user := currentUser(r.Context())
+	if user.Plan == domain.PlanPlus && user.SubscriptionStatus == "active" {
+		writeError(w, http.StatusConflict, "Desktop access is already active. Manage your subscription instead.")
+		return
+	}
 	checkout, err := s.stripe.CreateCheckout(r.Context(), user.ID, user.Email)
 	if err != nil {
 		s.logger.Error("stripe checkout creation failed", "user_id", user.ID, "error", err)
@@ -278,9 +302,13 @@ func (s *Server) applyStripeEvent(event billing.Event) error {
 			ClientReferenceID string `json:"client_reference_id"`
 			Customer          string `json:"customer"`
 			Subscription      string `json:"subscription"`
+			PaymentStatus     string `json:"payment_status"`
 		}
 		if err := json.Unmarshal(event.Data.Object, &object); err != nil || object.ClientReferenceID == "" {
 			return errors.New("checkout session has no app user")
+		}
+		if object.PaymentStatus != "paid" || object.Customer == "" || object.Subscription == "" {
+			return nil
 		}
 		return s.store.SetStripeSubscription(object.ClientReferenceID, object.Customer, object.Subscription, "active", domain.PlanPlus)
 	case "invoice.paid":
@@ -297,7 +325,7 @@ func (s *Server) applyStripeEvent(event billing.Event) error {
 			return err
 		}
 		plan := domain.PlanFree
-		if object.Status == "active" || object.Status == "trialing" {
+		if object.Status == "active" {
 			plan = domain.PlanPlus
 		}
 		user, err := s.store.UserByStripeCustomer(object.Customer)

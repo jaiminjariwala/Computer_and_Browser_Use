@@ -48,6 +48,27 @@ func (stripeStub) CreatePortal(context.Context, string) (billing.Checkout, error
 }
 func (s stripeStub) VerifyEvent([]byte, string) (billing.Event, error) { return s.event, nil }
 
+func TestDesktopAccessRequired(t *testing.T) {
+	data := store.NewMemory()
+	server := newTestServer(data, stripeStub{})
+	token := authenticate(t, server)
+	for _, endpoint := range []string{"/v1/chat", "/v1/chat/completions"} {
+		response := request(t, server, http.MethodPost, endpoint, token, `{"messages":[{"role":"user","content":"Give me Python code"}]}`)
+		if response.Code != http.StatusPaymentRequired {
+			t.Fatalf("%s: %d %s", endpoint, response.Code, response.Body.String())
+		}
+	}
+	checkout := request(t, server, http.MethodPost, "/v1/billing/checkout", token, `{}`)
+	if checkout.Code != http.StatusOK {
+		t.Fatalf("checkout: %d", checkout.Code)
+	}
+	_ = data.SetStripeSubscription("gh_42", "cus_42", "sub_42", "canceled", domain.PlanPlus)
+	response := request(t, server, http.MethodPost, "/v1/chat", token, `{"messages":[{"role":"user","content":"Hello"}]}`)
+	if response.Code != http.StatusPaymentRequired {
+		t.Fatalf("canceled subscription: %d", response.Code)
+	}
+}
+
 func TestAuthenticatedChatAndCheckout(t *testing.T) {
 	data := store.NewMemory()
 	server := newTestServer(data, stripeStub{})
@@ -59,6 +80,7 @@ func TestAuthenticatedChatAndCheckout(t *testing.T) {
 	}
 
 	token := authenticate(t, server)
+	_ = data.SetStripeSubscription("gh_42", "cus_42", "sub_42", "active", domain.PlanPlus)
 	chat := request(t, server, http.MethodPost, "/v1/chat", token, `{"messages":[{"role":"user","content":"Hello"}]}`)
 	if chat.Code != http.StatusOK {
 		t.Fatalf("chat status = %d; body = %s", chat.Code, chat.Body.String())
@@ -68,12 +90,12 @@ func TestAuthenticatedChatAndCheckout(t *testing.T) {
 		Usage    domain.Usage `json:"usage"`
 	}
 	decodeResponse(t, chat, &chatBody)
-	if chatBody.Response.Provider != "gemini" || chatBody.Usage.UsedUnits != 35 || chatBody.Usage.RemainingUnits != 965 {
+	if chatBody.Response.Provider != "gemini" || chatBody.Usage.UsedUnits != 35 || chatBody.Usage.RemainingUnits != 9965 {
 		t.Fatalf("unexpected chat response: %#v", chatBody)
 	}
 
 	checkout := request(t, server, http.MethodPost, "/v1/billing/checkout", token, `{}`)
-	if checkout.Code != http.StatusOK || !bytes.Contains(checkout.Body.Bytes(), []byte("checkout.stripe.test")) {
+	if checkout.Code != http.StatusConflict {
 		t.Fatalf("checkout response = %d %s", checkout.Code, checkout.Body.String())
 	}
 }
@@ -81,7 +103,7 @@ func TestAuthenticatedChatAndCheckout(t *testing.T) {
 func TestStripeCheckoutWebhookActivatesPlus(t *testing.T) {
 	data := store.NewMemory()
 	event := billing.Event{ID: "evt_checkout", Type: "checkout.session.completed"}
-	event.Data.Object = json.RawMessage(`{"client_reference_id":"gh_42","customer":"cus_42","subscription":"sub_42"}`)
+	event.Data.Object = json.RawMessage(`{"client_reference_id":"gh_42","customer":"cus_42","subscription":"sub_42","payment_status":"paid"}`)
 	server := newTestServer(data, stripeStub{event: event})
 	token := authenticate(t, server)
 
@@ -106,8 +128,10 @@ func TestStripeCheckoutWebhookActivatesPlus(t *testing.T) {
 }
 
 func TestOpenAICompatibleRouteAcceptsVisionMessages(t *testing.T) {
-	server := newTestServer(store.NewMemory(), stripeStub{})
+	data := store.NewMemory()
+	server := newTestServer(data, stripeStub{})
 	token := authenticate(t, server)
+	_ = data.SetStripeSubscription("gh_42", "cus_42", "sub_42", "active", domain.PlanPlus)
 	response := request(t, server, http.MethodPost, "/v1/chat/completions", token, `{
         "model":"managed-standard",
         "messages":[{"role":"user","content":[

@@ -2,12 +2,18 @@ package config
 
 import (
 	"errors"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 )
 
 type Config struct {
+	StripePublishableKey  string
+	CheckoutURL           string
+	GitHubClientID        string
+	GitHubClientSecret    string
+	GitHubRedirectURL     string
 	Port                  string
 	DatabaseURL           string
 	PublicAppURL          string
@@ -30,6 +36,11 @@ type Config struct {
 
 func Load() (Config, error) {
 	cfg := Config{
+		StripePublishableKey:  strings.TrimSpace(os.Getenv("STRIPE_PUBLISHABLE_KEY")),
+		CheckoutURL:           strings.TrimSpace(os.Getenv("CHECKOUT_URL")),
+		GitHubClientID:        strings.TrimSpace(os.Getenv("GITHUB_OAUTH_CLIENT_ID")),
+		GitHubClientSecret:    strings.TrimSpace(os.Getenv("GITHUB_OAUTH_CLIENT_SECRET")),
+		GitHubRedirectURL:     env("GITHUB_OAUTH_REDIRECT_URL", "http://127.0.0.1:8787/v1/auth/github/callback"),
 		Port:                  env("PORT", "8787"),
 		DatabaseURL:           strings.TrimSpace(os.Getenv("DATABASE_URL")),
 		PublicAppURL:          env("PUBLIC_APP_URL", "http://localhost:5173"),
@@ -51,6 +62,21 @@ func Load() (Config, error) {
 	}
 	if len(cfg.SessionSecret) < 32 {
 		return Config{}, errors.New("SESSION_SECRET must contain at least 32 characters")
+	}
+	for _, address := range []string{cfg.GitHubRedirectURL, cfg.CheckoutURL} {
+		if address == "" {
+			continue
+		}
+		parsed, err := url.Parse(address)
+		if err != nil || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Scheme != "https" && !(parsed.Scheme == "http" && (parsed.Hostname() == "127.0.0.1" || parsed.Hostname() == "localhost"))) {
+			return Config{}, errors.New("OAuth and checkout URLs require HTTPS, except localhost development")
+		}
+	}
+	if cfg.CheckoutURL != "" && cfg.StripePublishableKey == "" {
+		return Config{}, errors.New("CHECKOUT_URL requires STRIPE_PUBLISHABLE_KEY")
+	}
+	if cfg.OpenRouterModel != "openrouter/free" && !strings.HasSuffix(cfg.OpenRouterModel, ":free") {
+		return Config{}, errors.New("OPENROUTER_MODEL must be openrouter/free or a :free model; paid fallback is disabled")
 	}
 	if cfg.FreeMonthlyUnits <= 0 || cfg.PlusMonthlyUnits <= 0 {
 		return Config{}, errors.New("monthly usage limits must be positive")

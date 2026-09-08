@@ -30,10 +30,10 @@ func main() {
 	router := ai.NewRouter(
 		ai.NewCompatibleProvider("gemini", "https://generativelanguage.googleapis.com/v1beta/openai", cfg.GeminiModel, cfg.GeminiAPIKey, client),
 		ai.NewCompatibleProvider("openrouter", "https://openrouter.ai/api/v1", cfg.OpenRouterModel, cfg.OpenRouterAPIKey, client),
-		ai.NewOpenAIResponsesProvider(cfg.OpenAICodexModel, cfg.OpenAIAPIKey, client),
 	)
 	stripe := billing.NewStripe(billing.Config{
 		SecretKey: cfg.StripeSecretKey, WebhookSecret: cfg.StripeWebhookSecret,
+		CheckoutURL: cfg.CheckoutURL,
 		PlusPriceID: cfg.StripePlusPriceID, SuccessURL: cfg.StripeSuccessURL,
 		CancelURL: cfg.StripeCancelURL, PortalReturnURL: cfg.StripePortalReturnURL,
 	}, client)
@@ -56,6 +56,8 @@ func main() {
 	}
 
 	api := httpapi.New(httpapi.Config{
+		StripePublishableKey: cfg.StripePublishableKey,
+		GitHubClientID:       cfg.GitHubClientID, GitHubClientSecret: cfg.GitHubClientSecret, GitHubRedirectURL: cfg.GitHubRedirectURL,
 		PublicAppURL: cfg.PublicAppURL, FreeMonthlyUnits: cfg.FreeMonthlyUnits, PlusMonthlyUnits: cfg.PlusMonthlyUnits,
 	}, auth.NewGitHub(client), auth.NewSessions(cfg.SessionSecret), data, router, stripe, logger)
 
