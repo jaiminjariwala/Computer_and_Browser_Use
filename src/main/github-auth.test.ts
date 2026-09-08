@@ -41,6 +41,8 @@ describe('GitHub authentication persistence', () => {
     })
 
     afterEach(async () => {
+        vi.useRealTimers()
+        vi.unstubAllEnvs()
         await fs.rm(dir, { recursive: true, force: true })
     })
 
@@ -78,6 +80,41 @@ describe('GitHub authentication persistence', () => {
         })
 
         await expect(service.getStatus()).resolves.toMatchObject({ state: 'signed-in' })
+        service.dispose()
+    })
+
+    it('waits for saved credentials for simultaneous startup requests', async () => {
+        const user = { login: 'octocat' }
+        let finishRead!: (value: { token: string; user: typeof user }) => void
+        vi.spyOn(store, 'readSession').mockImplementation(() => new Promise(resolve => { finishRead = resolve }))
+        const service = new GitHubAuthService({
+            clientId: 'public-client-id', tokenStore: store,
+            fetchImpl: vi.fn(() => new Promise<Response>(() => undefined)) as typeof fetch
+        })
+        const first = service.getStatus()
+        const second = service.getStatus()
+        finishRead({ token: 'github-token', user })
+        await expect(first).resolves.toEqual({ state: 'signed-in', user })
+        await expect(second).resolves.toEqual({ state: 'signed-in', user })
+        service.dispose()
+    })
+
+    it('opens browser OAuth without exposing a code or token to the renderer', async () => {
+        vi.stubEnv('MANAGED_BACKEND_URL', 'https://backend.example')
+        vi.useFakeTimers()
+        const fetchImpl = vi.fn(async (url: string | URL | Request) => new Response(JSON.stringify(
+            String(url).endsWith('/start') ? { authorization_url: 'https://github.com/login/oauth/authorize?state=test', state: 'test', poll_token: 'private-poll' } :
+            String(url).endsWith('/poll') ? { access_token: 'private-access' } : { login: 'octocat' }
+        ), { status: 200 }))
+        const openExternal = vi.fn(async () => undefined)
+        const service = new GitHubAuthService({ clientId: 'client', tokenStore: store, fetchImpl: fetchImpl as typeof fetch, openExternal })
+        const challenge = await service.startLogin()
+        expect(challenge.userCode).toBe('')
+        expect(JSON.stringify(challenge)).not.toContain('private-')
+        expect(openExternal).toHaveBeenCalledOnce()
+        await vi.advanceTimersByTimeAsync(1500)
+        // Let the encrypted write finish before checking the saved identity.
+        await vi.waitFor(async () => expect(await store.read()).toBe('private-access'))
         service.dispose()
     })
 })

@@ -9,6 +9,7 @@ import type {
     GitHubUserIdentity
 } from '@shared/types'
 import { safeStorageCodec, type SecretCodec } from './config'
+import { configuredManagedBackendURL } from './managed-backend'
 
 declare const __GITHUB_OAUTH_CLIENT_ID__: string
 
@@ -201,8 +202,10 @@ export class GitHubAuthService {
             this.hydration ??= this.hydrate().finally(() => {
                 this.hydration = null
             })
-            await this.hydration
         }
+        // Every caller must wait for the same disk read, including callers
+        // arriving after hydrate() has marked initialization as started.
+        if (this.hydration) await this.hydration
         return cloneStatus(this.status)
     }
 
@@ -214,6 +217,55 @@ export class GitHubAuthService {
     }
 
     async startLogin(): Promise<GitHubDeviceChallenge> {
+        const base = configuredManagedBackendURL().replace(/\/+$/, '')
+        if (!base) throw new Error('The app backend must be configured for browser sign-in.')
+        const endpoint = new URL(base)
+        if (endpoint.protocol !== 'https:' && !(endpoint.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(endpoint.hostname))) throw new Error('Sign-in requires a secure backend.')
+        const attempt = ++this.attempt
+        this.hydrated = true
+        this.publish({ state: 'authorizing', message: 'Opening GitHub in your browser…' })
+        try {
+            const payload = await this.requestJson(`${base}/v1/auth/github/start`, { method: 'POST' })
+            this.assertCurrentAttempt(attempt)
+            const uri = stringField(payload, 'authorization_url')
+            if (!this.isGitHubVerificationUri(uri) || new URL(uri).pathname !== '/login/oauth/authorize') throw new Error('Invalid GitHub authorization URL.')
+            this.activeVerification = { uri, expiresAtMs: this.now() + 600_000 }
+            await this.openExternal(uri)
+            void this.pollBrowserLogin(base, payload, attempt)
+            return { userCode: '', verificationUri: uri, expiresAt: new Date(this.now() + 600_000).toISOString() }
+        } catch (error) {
+            if (attempt === this.attempt) this.publish({ state: 'error', message: error instanceof Error ? error.message : 'Browser sign-in failed.' })
+            throw error
+        }
+    }
+
+    private async pollBrowserLogin(base: string, start: JsonRecord, attempt: number): Promise<void> {
+        try {
+            const expires = this.now() + 600_000
+            while (attempt === this.attempt && this.now() < expires) {
+                await new Promise(resolve => setTimeout(resolve, 1500))
+                this.assertCurrentAttempt(attempt)
+                const result = await this.requestJson(`${base}/v1/auth/github/poll`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ state: start.state, poll_token: start.poll_token })
+                })
+                this.assertCurrentAttempt(attempt)
+                const token = stringField(result, 'access_token')
+                if (!token) continue
+                const user = await this.fetchUser(token)
+                this.assertCurrentAttempt(attempt)
+                await this.trackTokenOperation(this.tokenStore.write(token, user))
+                if (attempt !== this.attempt) { await this.tokenStore.clear(); return }
+                this.publish({ state: 'signed-in', user })
+                return
+            }
+            if (attempt === this.attempt) this.publish({ state: 'signed-out', message: 'Sign-in expired. Try again.' })
+        } catch (error) {
+            if (attempt === this.attempt) this.publish({ state: 'error', message: error instanceof Error ? error.message : 'Browser sign-in failed.' })
+        }
+    }
+
+    private async startDeviceLogin(): Promise<GitHubDeviceChallenge> {
         if (!this.clientId) {
             throw new Error('GitHub sign-in is not configured for this build.')
         }
@@ -498,7 +550,7 @@ export class GitHubAuthService {
             const response = await this.fetchImpl(url, { ...init, signal: controller.signal })
             const payload = asRecord(await response.json().catch(() => ({})))
             if (!response.ok) {
-                const detail = stringField(payload, 'message')
+                const detail = stringField(payload, 'message') || stringField(payload, 'error')
                 throw new GitHubHttpError(
                     response.status,
                     detail || `GitHub request failed with status ${response.status}.`
@@ -577,6 +629,7 @@ export function registerGitHubAuthIpc(options: GitHubAuthIpcOptions): {
                     hasTrustedSidebarUrl(sidebar.webContents.mainFrame.url)
                 ) {
                     sidebar.webContents.send('github-auth:changed', status)
+                    if (status.state === 'signed-in') { sidebar.show(); sidebar.focus() }
                 }
             }
         })

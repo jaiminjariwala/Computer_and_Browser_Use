@@ -55,6 +55,16 @@ export class ManagedBackendClient {
 
     configured(): boolean { return this.baseURL.length > 0 }
 
+    async requireAccess(): Promise<void> {
+        const status = await this.status()
+        if (!status.configured || !status.authenticated) {
+            throw new Error(status.message || 'Connect the app backend and sign in to check desktop access.')
+        }
+        if (status.user?.plan !== 'plus' || status.user.subscription_status !== 'active') {
+            throw new Error('Desktop access requires the $1/month subscription. Open the access dialog to subscribe.')
+        }
+    }
+
     async provider(): Promise<{ baseURL: string; model: string; apiKey: string } | null> {
         if (!this.configured()) return null
         const token = await this.ensureSession()
@@ -138,7 +148,9 @@ export class ManagedBackendClient {
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
         try {
-            const response = await this.fetchImpl(`${this.baseURL}${path}`, { ...init, signal: controller.signal })
+            const response = await this.fetchImpl(`${this.baseURL}${path}`, { ...init, signal: controller.signal }).catch(() => {
+                throw new Error('Cannot reach the app backend. Please try again later. For local development, start the database and Go server.')
+            })
             if (requireOK && !response.ok) await this.throwResponse(response)
             if (!requireOK && !response.ok && response.status !== 401) await this.throwResponse(response)
             return response
@@ -180,7 +192,10 @@ export class ManagedBackendClient {
         const url = new URL(value)
         const trusted = url.protocol === 'https:' &&
             (url.hostname === 'checkout.stripe.com' || url.hostname === 'billing.stripe.com')
-        if (!trusted) throw new Error('The billing service returned an unsafe URL.')
+        const base = new URL(this.baseURL)
+        const custom = url.origin === base.origin && url.pathname === '/checkout' &&
+            (url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)))
+        if (!trusted && !custom) throw new Error('The billing service returned an unsafe URL.')
         await this.openExternal(url.href)
     }
 }
