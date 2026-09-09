@@ -31,7 +31,7 @@ import { jsonAgentSessionCodec, type AgentSessionCodec } from './codec'
  * against a temp directory without any Electron APIs.
  */
 
-// Distinct from Computer or Browser Use's own `sessions/` directory — the merged operator
+// Distinct from Codex Lite's own `sessions/` directory — the merged operator
 // engine shares the same `userData` dir, so its (differently-shaped) sessions
 // live under their own directory to avoid clobbering the host app's chats.
 const SESSIONS_DIRNAME = 'operator-sessions'

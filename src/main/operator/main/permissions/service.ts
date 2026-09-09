@@ -2,7 +2,7 @@
  * The extended two-permission service (Screen Recording + Accessibility).
  *
  * The vendored `screen.ts` handles Screen Recording alone (legacy GlassError
- * shape). Computer or Browser Use needs BOTH macOS permissions:
+ * shape). Codex Lite needs BOTH macOS permissions:
  *
  *   - Screen Recording (Perception) — getMediaAccessStatus('screen')
  *   - Accessibility  (input synthesis) — isTrustedAccessibilityClient(false)
@@ -103,8 +103,8 @@ function permissionMessage(kind: PermissionKind, previouslyGranted: boolean): st
             ? 'capture your screen'
             : 'control your computer with synthesized input events'
     return previouslyGranted
-        ? `${name} permission was turned off, so Computer or Browser Use cannot ${need}. Re-enable it in System Settings to continue.`
-        : `Computer or Browser Use needs ${name} permission to ${need}. Enable it in System Settings to continue.`
+        ? `${name} permission was turned off, so Codex Lite cannot ${need}. Re-enable it in System Settings to continue.`
+        : `Codex Lite needs ${name} permission to ${need}. Enable it in System Settings to continue.`
 }
 
 /**

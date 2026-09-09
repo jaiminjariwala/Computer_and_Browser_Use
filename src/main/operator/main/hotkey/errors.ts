@@ -53,7 +53,7 @@ export function buildHotkeyError(
     }
     return {
         kind: 'hotkey-registration-failed',
-        message: `Computer or Browser Use could not register the Emergency_Stop shortcut ${accelerator}. Use the on-screen Emergency Stop control instead.`,
+        message: `Codex Lite could not register the Emergency_Stop shortcut ${accelerator}. Use the on-screen Emergency Stop control instead.`,
         recoverable: true,
         action: 'retry'
     }

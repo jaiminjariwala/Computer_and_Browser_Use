@@ -12,7 +12,7 @@ import {
 /**
  * Window Manager (Task 3.1).
  *
- * Owns the two Computer or Browser Use windows from the design's "Window Topology":
+ * Owns the two Codex Lite windows from the design's "Window Topology":
  *
  * - The **Console_Window**: a frameless, floating, always-on-top panel hosting
  *   the React console UI (goal intake, autonomy/budget, live activity log,
@@ -54,7 +54,7 @@ function loadIndicatorRenderer(window: BrowserWindow): void {
 }
 
 /**
- * Manages the lifecycle and visibility of Computer or Browser Use's windows and drives
+ * Manages the lifecycle and visibility of Codex Lite's windows and drives
  * the Control_Indicator strictly in lockstep with the "agent in control" flag
  * (Req 12.1, 12.2).
  */
@@ -165,7 +165,7 @@ export class WindowManager {
         const window = new BrowserWindow({
             width: 1320,
             height: 900,
-            title: 'Sandboxed Desktop — Computer or Browser Use',
+            title: 'Sandboxed Desktop — Codex Lite',
             backgroundColor: '#20203a',
             webPreferences: {
                 contextIsolation: true,

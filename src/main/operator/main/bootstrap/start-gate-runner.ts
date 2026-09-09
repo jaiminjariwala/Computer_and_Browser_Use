@@ -10,7 +10,7 @@ import { deterministicRouteFor } from '../deterministic-reasoning'
  * Open the exact macOS System Settings pane for a permission error, so the user
  * lands right where they can grant it instead of hunting through Settings. In
  * dev the app runs under the Electron binary, so the pane may list it as
- * "Electron" rather than "Computer or Browser Use" — that's the entry to enable.
+ * "Electron" rather than "Codex Lite" — that's the entry to enable.
  */
 function openSettingsForError(error: OperatorError): void {
     const pane =

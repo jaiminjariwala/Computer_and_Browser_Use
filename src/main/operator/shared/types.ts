@@ -1,5 +1,5 @@
 /**
- * Shared types for Computer or Browser Use.
+ * Shared types for Codex Lite.
  *
  * This module is the single source of truth for the data models described in
  * the design's "Data Models" section: the typed Action_Space, the Trajectory

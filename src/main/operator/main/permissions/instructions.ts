@@ -48,7 +48,7 @@ export function buildScreenSettingsInstructions(
 ): SystemSettingsInstructions {
     if (previouslyGranted) {
         return {
-            title: 'Re-enable Screen Recording for Computer or Browser Use',
+            title: 'Re-enable Screen Recording for Codex Lite',
             steps: [
                 'Open System Settings > Privacy & Security > Screen Recording.',
                 'Turn the toggle for the app (shown as "Electron" in dev) back on.',
@@ -60,7 +60,7 @@ export function buildScreenSettingsInstructions(
     }
 
     return {
-        title: 'Allow Screen Recording for Computer or Browser Use',
+        title: 'Allow Screen Recording for Codex Lite',
         steps: [
             'Open System Settings > Privacy & Security > Screen Recording.',
             'Find the app (shown as "Electron" in dev) in the list and turn its toggle on.',
@@ -86,7 +86,7 @@ export function buildPermissionInstructions(
 
     if (previouslyGranted) {
         return {
-            title: 'Re-enable Accessibility for Computer or Browser Use',
+            title: 'Re-enable Accessibility for Codex Lite',
             steps: [
                 'Open System Settings > Privacy & Security > Accessibility.',
                 'Turn the toggle for the app (shown as "Electron" in dev) back on.',
@@ -98,7 +98,7 @@ export function buildPermissionInstructions(
     }
 
     return {
-        title: 'Allow Accessibility for Computer or Browser Use',
+        title: 'Allow Accessibility for Codex Lite',
         steps: [
             'Open System Settings > Privacy & Security > Accessibility.',
             'Find the app (shown as "Electron" in dev) in the list and turn its toggle on.',

@@ -239,7 +239,7 @@ export class SafetyController implements EmergencyStopHandler {
         const error: OperatorError = {
             kind: 'indicator-unavailable',
             message:
-                'The "agent in control" indicator could not be displayed, so Computer or Browser Use halted and will execute no Action.',
+                'The "agent in control" indicator could not be displayed, so Codex Lite halted and will execute no Action.',
             recoverable: true,
             action: 'retry'
         }

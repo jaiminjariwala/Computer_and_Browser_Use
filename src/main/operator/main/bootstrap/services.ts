@@ -41,7 +41,7 @@ import { deterministicBrowserReason } from '../deterministic-reasoning'
 import type { Environment } from '../environment/types'
 
 /**
- * Service construction for the Computer or Browser Use main process (extracted from the
+ * Service construction for the Codex Lite main process (extracted from the
  * `app.whenReady` body so the entry stays a thin orchestrator).
  *
  * ## Wiring topology
@@ -102,10 +102,10 @@ export interface OperatorServices {
 export interface OperatorServiceOptions {
     /**
      * Accessor for the HOST window that receives every main -> renderer operator
-     * event. In the merged Computer or Browser Use build this is the existing Sidebar
+     * event. In the merged Codex Lite build this is the existing Sidebar
      * window, so the operator activity renders inside the copilot chat rather
      * than a separate Console_Window. When omitted, falls back to the operator's
-     * own Console_Window (the standalone Computer or Browser Use behavior).
+     * own Console_Window (the standalone Codex Lite behavior).
      */
     getHostWindow?: () => BrowserWindow | null
     browserEnvironment?: Environment
@@ -126,7 +126,7 @@ export function createOperatorServices(options: OperatorServiceOptions = {}): Op
     const permissionProbe = createElectronPermissionProbe()
     const readPermissions = (): PermissionSnapshot => getPermissionSnapshot(permissionProbe)
 
-    // Operator events target the host (Sidebar) window when merged into Computer or Browser Use
+    // Operator events target the host (Sidebar) window when merged into Codex Lite
     // Copilot; otherwise the standalone Console_Window.
     const consoleWindow = (): BrowserWindow | null =>
         options.getHostWindow?.() ?? windows.getConsole()

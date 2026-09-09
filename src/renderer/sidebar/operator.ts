@@ -4,8 +4,8 @@ import { estimateCostUsd, formatCostUsd, formatTokens, hasUsage } from '@op-shar
 import { redactSensitiveText } from './privacy'
 
 /**
- * Pure helpers for rendering merged Computer or Browser Use activity inside the
- * Computer or Browser Use interface.
+ * Pure helpers for rendering merged Codex Lite activity inside the
+ * Codex Lite interface.
  * Copilot chat.
  *
  * The operator engine streams `TrajectoryStepView`s (one per perceive -> reason

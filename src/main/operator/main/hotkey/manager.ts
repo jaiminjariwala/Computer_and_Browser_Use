@@ -1,9 +1,9 @@
 /**
  * Emergency_Stop Hotkey Manager (Task 9.1).
  *
- * Repurposed from the Computer or Browser Use `hotkey.ts` primitive vendored in Task 2
+ * Repurposed from the Codex Lite `hotkey.ts` primitive vendored in Task 2
  * (Req 19: a one-time COPY — this module does not import from or modify the
- * `computer-or-browser-use` project). Computer or Browser Use now owns and evolves this copy as the
+ * `computer-or-browser-use` project). Codex Lite now owns and evolves this copy as the
  * global **Emergency_Stop** kill-switch.
  *
  * Responsibilities (Req 7):

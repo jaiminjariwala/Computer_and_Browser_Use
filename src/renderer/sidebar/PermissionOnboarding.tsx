@@ -39,7 +39,7 @@ export function PermissionOnboarding({
                 <div className="permission-onboarding__appicon" aria-hidden="true">
                     <span>⌁</span>
                 </div>
-                <h2 id="permission-onboarding-title">Enable Computer or Browser Use</h2>
+                <h2 id="permission-onboarding-title">Enable Codex Lite</h2>
                 <p className="permission-onboarding__intro">
                     Local Mac control needs these permissions to see and operate apps when you approve a task.
                 </p>
@@ -80,10 +80,10 @@ export function PermissionOnboarding({
                                 event.dataTransfer.effectAllowed = 'copy'
                                 getOperatorBridge()?.startPermissionAppDrag?.()
                             }}
-                            aria-label="Drag Computer or Browser Use into System Settings"
+                            aria-label="Drag Codex Lite into System Settings"
                         >
                             <span className="permission-drag-help__appicon" aria-hidden="true">⌁</span>
-                            Computer or Browser Use
+                            Codex Lite
                         </div>
                     </div>
                 )}

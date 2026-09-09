@@ -1,7 +1,7 @@
 {
   "name": "computer-or-browser-use",
   "version": "1.0.0",
-  "description": "Computer or Browser Use - a screen-aware macOS app that advises you or acts for you in a browser or on your Mac.",
+  "description": "Codex Lite - an independent macOS chat and code workspace with experimental automation.",
   "main": "out/main/index.js",
   "author": "",
   "license": "MIT",

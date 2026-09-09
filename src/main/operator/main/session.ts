@@ -2,8 +2,8 @@
  * Session / Trajectory Manager (Task 12.1, 12.2) — public surface.
  *
  * Migrated onto the design's data model (`AgentSession`, `Trajectory`,
- * `TrajectorySummary`) from the Computer or Browser Use `session.ts` primitive vendored in
- * Task 2. Reuse rule (Req 19): Computer or Browser Use owns and evolves this copy; it
+ * `TrajectorySummary`) from the Codex Lite `session.ts` primitive vendored in
+ * Task 2. Reuse rule (Req 19): Codex Lite owns and evolves this copy; it
  * imports from `@op-shared/types` and nothing here references the `computer-or-browser-use`
  * project.
  *
