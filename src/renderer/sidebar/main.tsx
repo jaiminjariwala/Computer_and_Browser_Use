@@ -1,4 +1,5 @@
 import React from 'react'
+import './theme'
 import { createRoot } from 'react-dom/client'
 // Inter (variable), self-hosted so it works offline and within the renderer CSP.
 import '@fontsource-variable/inter'

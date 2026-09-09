@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import type { ConfigStatus, MemoryEntry } from '@shared/types'
 import { getConfigBridge } from './config-bridge'
 import { getChatBridge } from './bridges'
+import { getTheme, setTheme, type AppTheme } from './theme'
 
 /**
  * AI settings — deliberately small. Two ways to connect, nothing else:
@@ -56,204 +57,26 @@ const hintStyle: React.CSSProperties = {
 
 const storedDot = <span style={{ color: '#19c37d' }}>●</span>
 
-export function Settings({ onConfigStatusChange }: { onConfigStatusChange?: (status: ConfigStatus) => void } = {}): React.JSX.Element {
-    const [baseURL, setBaseURL] = useState('')
-    const [model, setModel] = useState('')
-    const [apiKey, setApiKey] = useState('')
-    const [hasCredentials, setHasCredentials] = useState(false)
-    const [openrouterKey, setOpenrouterKey] = useState('')
-    const [hasOpenrouter, setHasOpenrouter] = useState(false)
-    const [geminiKey, setGeminiKey] = useState('')
-    const [hasGemini, setHasGemini] = useState(false)
-    const [bridgeMissing, setBridgeMissing] = useState(false)
-    const [save, setSave] = useState<SaveState>({ kind: 'idle' })
-
-    const loadStatus = useCallback(async () => {
-        const bridge = getConfigBridge()
-        if (!bridge) {
-            setBridgeMissing(true)
-            return
-        }
-        setBridgeMissing(false)
-        try {
-            const status = await bridge.getConfigStatus()
-            setBaseURL(status.baseURL)
-            setModel(status.model)
-            setHasCredentials(status.hasCredentials)
-            setHasOpenrouter(status.hasOpenrouter)
-            setHasGemini(status.hasGemini)
-            onConfigStatusChange?.(status)
-        } catch {
-            /* Leave fields as-is; the user can still enter values. */
-        }
-    }, [onConfigStatusChange])
-
-    useEffect(() => {
-        void loadStatus()
-    }, [loadStatus])
-
-    const anyConnected = hasCredentials || hasOpenrouter || hasGemini
-
-    const onSubmit = useCallback(
-        async (e: React.FormEvent) => {
-            e.preventDefault()
-            const bridge = getConfigBridge()
-            if (!bridge) {
-                setSave({ kind: 'error', message: 'Settings are unavailable right now.' })
-                return
-            }
-            setSave({ kind: 'saving' })
-            try {
-                await bridge.saveConfig({
-                    baseURL: baseURL.trim(),
-                    model: model.trim(),
-                    apiKey,
-                    openrouterApiKey: openrouterKey,
-                    geminiApiKey: geminiKey
-                })
-                setApiKey('')
-                setOpenrouterKey('')
-                setGeminiKey('')
-                setSave({ kind: 'saved' })
-                await loadStatus()
-            } catch (err) {
-                const message = err instanceof Error ? err.message : 'Failed to save settings.'
-                setSave({ kind: 'error', message })
-            }
-        },
-        [baseURL, model, apiKey, openrouterKey, geminiKey, loadStatus]
-    )
-
-    return (
-        <section aria-label="AI settings" className="glass-settings">
-            <div className="glass-settings__status">
-                <span
-                    className="glass-settings__dot"
-                    style={{ background: anyConnected ? '#19c37d' : '#d29922' }}
-                    title={anyConnected ? 'An AI provider is connected' : 'No AI connected yet'}
-                />
-                <span className="glass-settings__statuslabel">
-                    {anyConnected ? 'Connected' : 'Not connected'}
-                </span>
-            </div>
-
-            {bridgeMissing && (
-                <p style={{ fontSize: 12, color: '#d29922', margin: '4px 0' }}>
-                    Settings bridge not available.
-                </p>
-            )}
-
-            <form onSubmit={onSubmit}>
-                <p style={sectionTitle}>Free keys</p>
-                <p style={hintStyle}>
-                    Paste one and you're done — it's encrypted on this Mac and used
-                    automatically. Either provider works; with both, Gemini is tried first
-                    for tasks and OpenRouter first for chat fallback.
-                </p>
-
-                <label style={labelStyle} htmlFor="glass-gem-key">
-                    Google Gemini key {hasGemini && storedDot}
-                </label>
-                <p style={hintStyle}>Get it at aistudio.google.com/app/apikey</p>
-                <input
-                    id="glass-gem-key"
-                    type="password"
-                    autoComplete="off"
-                    placeholder={hasGemini ? '•••••••• (stored — paste to replace)' : 'AIza…'}
-                    value={geminiKey}
-                    onChange={(e) => setGeminiKey(e.target.value)}
-                    style={inputStyle}
-                />
-
-                <label style={labelStyle} htmlFor="glass-or-key">
-                    OpenRouter key {hasOpenrouter && storedDot}
-                </label>
-                <p style={hintStyle}>Get it at openrouter.ai/settings/keys</p>
-                <input
-                    id="glass-or-key"
-                    type="password"
-                    autoComplete="off"
-                    placeholder={hasOpenrouter ? '•••••••• (stored — paste to replace)' : 'sk-or-…'}
-                    value={openrouterKey}
-                    onChange={(e) => setOpenrouterKey(e.target.value)}
-                    style={inputStyle}
-                />
-
-                <p style={sectionTitle}>
-                    Your own AI (company or personal) {hasCredentials && storedDot}
-                </p>
-                <p style={hintStyle}>
-                    Any OpenAI-compatible endpoint: a corporate gateway, a paid account, or
-                    a local server. When set, it is always tried first.
-                </p>
-
-                <label style={labelStyle} htmlFor="glass-baseurl">
-                    Base URL
-                </label>
-                <input
-                    id="glass-baseurl"
-                    type="url"
-                    placeholder="https://your-gateway/v1"
-                    value={baseURL}
-                    onChange={(e) => setBaseURL(e.target.value)}
-                    style={inputStyle}
-                />
-
-                <label style={labelStyle} htmlFor="glass-model">
-                    Model
-                </label>
-                <input
-                    id="glass-model"
-                    type="text"
-                    placeholder="vision-capable-model-id"
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    style={inputStyle}
-                />
-
-                <label style={labelStyle} htmlFor="glass-apikey">
-                    API key {hasCredentials && <span style={{ color: '#a6a6ad' }}>(stored, leave blank to keep)</span>}
-                </label>
-                <input
-                    id="glass-apikey"
-                    type="password"
-                    autoComplete="off"
-                    placeholder={hasCredentials ? '••••••••' : 'Enter API key'}
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    style={inputStyle}
-                />
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
-                    <button
-                        type="submit"
-                        disabled={save.kind === 'saving'}
-                        style={{
-                            padding: '7px 16px',
-                            fontSize: 13,
-                            fontWeight: 400,
-                            color: 'var(--text)',
-                            background: 'var(--field-bg)',
-                            border: '1px solid var(--field-border)',
-                            borderRadius: 8,
-                            cursor: save.kind === 'saving' ? 'default' : 'pointer',
-                            opacity: save.kind === 'saving' ? 0.6 : 1
-                        }}
-                    >
-                        {save.kind === 'saving' ? 'Saving…' : 'Save'}
-                    </button>
-                    {save.kind === 'saved' && (
-                        <span style={{ fontSize: 12, color: '#6b6b73' }}>Saved</span>
-                    )}
-                    {save.kind === 'error' && (
-                        <span style={{ fontSize: 12, color: '#9a2530' }}>{save.message}</span>
-                    )}
-                </div>
-            </form>
-
-            <MemorySection />
-        </section>
-    )
+export function Settings({ onConfigStatusChange: _onConfigStatusChange, onBack }: { onConfigStatusChange?: (status: ConfigStatus) => void; onBack?: () => void } = {}): React.JSX.Element {
+    const [appearance, setAppearance] = useState<AppTheme>(getTheme)
+    return <section aria-label="AI settings" className="glass-settings">
+        {onBack && <button type="button" className="settings-back" onClick={onBack}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14" /></svg>
+            Back to chat
+        </button>}
+        <label className="desktop-appearance">Appearance
+            <select value={appearance} onChange={event => {
+                const next = event.target.value as AppTheme
+                setAppearance(next); setTheme(next)
+            }}>
+                <option value="dark">Dark</option><option value="light">Light</option>
+            </select>
+        </label>
+        <h3 style={sectionTitle}>Local AI</h3>
+        <p style={hintStyle}>Ollama runs Qwen Coder on this Mac. No Gemini, OpenRouter, or other provider key is needed. Download progress and pause/resume controls appear above the message field. The starter model supports text and code, not visual attachments.</p>
+        <p style={hintStyle}>GitHub sign-in and $1/month Stripe app access still require internet. Local answers do not consume cloud-model credits.</p>
+        <MemorySection />
+    </section>
 }
 
 /**

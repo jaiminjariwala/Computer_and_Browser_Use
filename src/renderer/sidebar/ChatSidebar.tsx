@@ -76,26 +76,6 @@ function MenuChevron({ open }: { open: boolean }): React.JSX.Element {
     )
 }
 
-/** Compact "how long ago" label: 3 mins ago · 5 hrs ago · 2 days ago · 1 wk ago … */
-function relativeTimeLabel(iso: string, nowMs: number): string {
-    const then = new Date(iso).getTime()
-    if (Number.isNaN(then)) return ''
-    const seconds = Math.max(0, Math.floor((nowMs - then) / 1000))
-    if (seconds < 60) return 'now'
-    const minutes = Math.floor(seconds / 60)
-    if (minutes < 60) return `${minutes} ${minutes === 1 ? 'min' : 'mins'} ago`
-    const hours = Math.floor(minutes / 60)
-    if (hours < 24) return `${hours} ${hours === 1 ? 'hr' : 'hrs'} ago`
-    const days = Math.floor(hours / 24)
-    if (days < 7) return `${days} ${days === 1 ? 'day' : 'days'} ago`
-    const weeks = Math.floor(days / 7)
-    if (days < 30) return `${weeks} ${weeks === 1 ? 'wk' : 'wks'} ago`
-    const months = Math.floor(days / 30)
-    if (months < 12) return `${months} ${months === 1 ? 'month' : 'months'} ago`
-    const years = Math.floor(days / 365)
-    return `${years} ${years === 1 ? 'year' : 'years'} ago`
-}
-
 /** Fast type/delete cycle for the active running row; static under reduced motion. */
 function useTypewriter(text: string, animate: boolean): string {
     const [visible, setVisible] = useState(text)
@@ -196,12 +176,6 @@ export function ChatSidebar({
     const [upgradeOpen, setUpgradeOpen] = useState(false)
     const [managedStatus, setManagedStatus] = useState<ManagedAccountStatus | null>(null)
     const accountMenuRef = useRef<HTMLDivElement>(null)
-    // Ticks once a minute so the "x mins ago" labels never go stale.
-    const [now, setNow] = useState(() => Date.now())
-    useEffect(() => {
-        const timer = setInterval(() => setNow(Date.now()), 60_000)
-        return () => clearInterval(timer)
-    }, [])
 
     useEffect(() => {
         if (!accountMenuOpen) return
@@ -250,6 +224,10 @@ export function ChatSidebar({
             .startGitHubLogin()
             .then((nextChallenge) => {
                 setChallenge(nextChallenge)
+                if (!nextChallenge.userCode) {
+                    setAuthStatus({ state: 'authorizing', message: 'Continue with GitHub in your browser. This app will update automatically.' })
+                    return
+                }
                 // Copy the one-time code up front so the user only has to
                 // paste (⌘V) on the GitHub page that just opened.
                 void navigator.clipboard
@@ -332,7 +310,7 @@ export function ChatSidebar({
     return (
         <aside className="glass-nav glass-nav--open" aria-label="Conversation sidebar">
             <div className="glass-nav__brand-row">
-                <span>Computer and Browser Use</span>
+                <span>Codex Lite</span>
             </div>
 
             <div className="glass-nav__primary">
@@ -372,11 +350,9 @@ export function ChatSidebar({
                                     <ChatDescription text={item.description} animate />
                                 )}
                             </span>
-                            <span className="glass-history__time">
-                                {computerUseSessionIds.has(item.id) ? (
-                                    <span className="glass-history__capability" title="Computer or Browser Use was used in this chat" aria-label="Computer or Browser Use used"><BrowserUseIcon /></span>
-                                ) : relativeTimeLabel(item.updatedAt, now)}
-                            </span>
+                            {computerUseSessionIds.has(item.id) && <span className="glass-history__time">
+                                    <span className="glass-history__capability" title="Codex Lite was used in this chat" aria-label="Codex Lite used"><BrowserUseIcon /></span>
+                            </span>}
                         </button>
                     )
                 })}
@@ -385,11 +361,11 @@ export function ChatSidebar({
             <div className="glass-nav__footer" ref={accountMenuRef}>
                 {challenge && authStatus?.state === 'authorizing' && (
                     <div className="glass-account-code" role="status">
-                        <span>GitHub code</span>
-                        <span className="glass-account-code__value">{challenge.userCode}</span>
-                        <button type="button" onClick={copyCode} title="Copy the GitHub verification code">
+                        <span>{challenge.userCode ? 'GitHub code' : 'Waiting for GitHub approval…'}</span>
+                        {challenge.userCode && <span className="glass-account-code__value">{challenge.userCode}</span>}
+                        {challenge.userCode && <button type="button" onClick={copyCode} title="Copy the GitHub verification code">
                             {copied ? 'Copied' : 'Copy'}
-                        </button>
+                        </button>}
                         <button type="button" onClick={reopenGitHub} title="Reopen the GitHub authorize page">
                             Reopen
                         </button>
@@ -412,19 +388,17 @@ export function ChatSidebar({
                             aria-expanded={usageOpen}
                         >
                             <span className="glass-account-menu__icon"><UsageIcon /></span>
-                            <span>Usage remaining</span>
+                            <span>Desktop access</span>
                             <MenuChevron open={usageOpen} />
                         </button>
                         {usageOpen && (
                             <div className="glass-account-menu__usage-details">
-                                <p className="glass-account-menu__usage-heading">
-                                    {isPlus ? 'Computer and Browser Use Plus' : 'Free plan'}
-                                </p>
-                                {remainingPercent !== null ? (
-                                    <div><span>Monthly usage remaining</span><strong className="is-connected">{remainingPercent}%</strong></div>
-                                ) : (
-                                    <div><span>Monthly usage</span><strong>{managedStatus?.message ?? 'Loading…'}</strong></div>
-                                )}
+                                <div className="glass-account-menu__local-status">
+                                    <span className={`glass-account-menu__status-dot${isPlus ? ' is-active' : ''}`}
+                                        role="img" aria-label={isPlus ? 'Desktop access active' : 'Desktop access inactive'}
+                                        title={isPlus ? 'Desktop access active' : 'Desktop access inactive'} />
+                                    <span>AI runs locally</span>
+                                </div>
                                 <button
                                     type="button"
                                     className="glass-account-menu__upgrade"
@@ -437,7 +411,7 @@ export function ChatSidebar({
                                         }
                                     }}
                                 >
-                                    {isPlus ? 'Manage subscription' : 'Upgrade to Plus'}
+                                    {isPlus ? 'Manage subscription' : 'Get desktop access · $1/month'}
                                 </button>
                             </div>
                         )}

@@ -30,15 +30,15 @@ export function PlusUpgradeModal({ onClose }: PlusUpgradeModalProps): React.JSX.
             <article className="plus-plan-card">
                 <button type="button" className="plus-plan-card__close" onClick={onClose} aria-label="Close upgrade">×</button>
                 <div>
-                    <span className="plus-plan-card__eyebrow">Computer and Browser Use</span>
-                    <h2 id="plus-upgrade-title">Plus</h2>
-                    <div className="plus-plan-card__price"><sup>$</sup><strong>24.99</strong><span>USD / month</span></div>
-                    <p>Managed AI and a coding agent for everyday chat, code, vision, and computer-use tasks.</p>
+                    <span className="plus-plan-card__eyebrow">Codex Lite</span>
+                    <h2 id="plus-upgrade-title">Desktop access</h2>
+                    <div className="plus-plan-card__price"><sup>$</sup><strong>1</strong><span>USD / month</span></div>
+                    <p>A lightweight workspace for everyday questions and code. The subscription pays for app access, not a Codex or premium model plan.</p>
                 </div>
 
                 <div className="plus-plan-card__speed">
-                    <span>Response speed</span>
-                    <strong>Standard</strong>
+                    <span>AI providers</span>
+                    <strong>Ollama · Local Qwen Coder</strong>
                 </div>
 
                 <button
@@ -56,27 +56,23 @@ export function PlusUpgradeModal({ onClose }: PlusUpgradeModalProps): React.JSX.
                             .finally(() => setCheckoutBusy(false))
                     }}
                 >
-                    {checkoutBusy ? 'Opening secure checkout…' : 'Upgrade to Plus'}
+                    {checkoutBusy ? 'Opening secure checkout…' : 'Subscribe for $1/month'}
                 </button>
                 {checkoutError && <p className="plus-plan-card__error" role="alert">{checkoutError}</p>}
 
                 <ul>
                     {[
-                        'Managed models without pasting provider keys',
-                        'Coding agent with an automatic right-side code workspace',
-                        'Basic coding questions and working code generation',
-                        'Automatic cost-aware model routing',
-                        'One Plus usage allowance shared across every model',
-                        'The actual model used shown with each response',
-                        'Computer and browser use',
-                        'Image, screenshot, PDF, and file understanding',
-                        'Conversation history and memory'
+                        'Ask everyday questions and get Python or other code answers',
+                        'Code opens in the right-side workspace',
+                        'GitHub sign-in, saved chats, and attachments',
+                        'Local AI on your Mac — no provider keys or per-request cloud bill'
                     ].map((feature) => (
                         <li key={feature}><CheckIcon /><span>{feature}</span></li>
                     ))}
                 </ul>
 
-                <p className="plus-plan-card__notice">Cancel anytime in the billing portal.</p>
+                <p className="plus-plan-card__notice">Initial Ollama and model downloads require internet and disk space. Speed and answer quality depend on your Mac. The starter model supports text/code, not images or visual automation. The $1/month fee is for app access. Sign-in and billing still require internet. Cancel anytime in the billing portal.</p>
+                <p className="plus-plan-card__notice">Independent project; not affiliated with OpenAI.</p>
             </article>
         </div>,
         document.body

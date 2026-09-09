@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import * as monaco from 'monaco-editor'
 import { loader } from '@monaco-editor/react'
+import { getTheme } from './theme'
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
 import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
@@ -44,6 +45,21 @@ let themeDefined = false
 export function ensureCopilotTheme(monacoInstance: typeof monaco): void {
     if (themeDefined) return
     themeDefined = true
+    if (getTheme() === 'dark') {
+        monacoInstance.editor.defineTheme(MONACO_THEME, {
+            base: 'vs-dark', inherit: true, rules: [],
+            colors: {
+                'editor.background': '#181818',
+                'editorGutter.background': '#181818',
+                'editor.foreground': '#eeeeee',
+                'focusBorder': '#00000000',
+                'editorLineNumber.foreground': '#808080',
+                'editorCursor.foreground': '#eeeeee',
+                'editor.lineHighlightBorder': '#00000000'
+            }
+        })
+        return
+    }
     monacoInstance.editor.defineTheme(MONACO_THEME, {
         base: 'vs',
         inherit: true,
@@ -78,3 +94,9 @@ export function ensureCopilotTheme(monacoInstance: typeof monaco): void {
         }
     })
 }
+
+window.addEventListener('desktop-theme-change', () => {
+    themeDefined = false
+    ensureCopilotTheme(monaco)
+    monaco.editor.setTheme(MONACO_THEME)
+})

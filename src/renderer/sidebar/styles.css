@@ -112,7 +112,7 @@ body {
     top: 0;
     bottom: 0;
     width: 1px;
-    background: var(--border);
+    background: transparent;
     pointer-events: none;
 }
 .workspace-bar__title {
@@ -219,7 +219,7 @@ body {
     bottom: 0;
     left: var(--chat-nav-width, 296px);
     width: 1px;
-    background: var(--border);
+    background: transparent;
     cursor: col-resize;
     touch-action: none;
 }
@@ -434,7 +434,7 @@ body.is-resizing-nav {
     overflow: auto;
     border: .5px solid rgba(42, 42, 48, .18);
     border-radius: 20px;
-    background: #fff;
+    background: var(--card-bg);
     box-shadow: 0 16px 48px rgba(22, 22, 28, .10), 0 2px 8px rgba(22, 22, 28, .04);
 }
 
@@ -492,8 +492,8 @@ body.is-resizing-nav {
     max-height: calc(100vh - 150px);
     display: flex;
     flex-direction: column;
-    color: #252529;
-    background: #ffffff;
+    color: var(--text);
+    background: var(--card-bg);
     border-top: 1px solid var(--border);
     font: 12.5px/1.55 'SF Mono', ui-monospace, Menlo, monospace;
 }
@@ -532,7 +532,7 @@ body.is-resizing-terminal {
     gap: 8px;
     padding: 0 7px 0 9px;
     border-radius: 8px;
-    background: #f3f3f4;
+    background: var(--bg-subtle);
 }
 .terminal-panel__tab svg { flex: 0 0 auto; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .terminal-panel__tab strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #3b3b40; font: 500 12px/1.2 Inter, system-ui, sans-serif; }
@@ -544,12 +544,12 @@ body.is-resizing-terminal {
 .terminal-panel__output { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 10px 14px 24px; }
 .terminal-entry { margin-bottom: 10px; }
 .terminal-entry > div span { color: #4a4a50; }
-.terminal-entry pre { margin: 3px 0 0; color: #252529; font: inherit; white-space: pre-wrap; }
+.terminal-entry pre { margin: 3px 0 0; color: var(--text); font: inherit; white-space: pre-wrap; }
 .terminal-entry small { color: #c8333d; }
 .terminal-panel__running { color: var(--text-dim); }
 .terminal-panel__prompt { display: flex; align-items: center; gap: 7px; min-height: 24px; margin: 0; padding: 0; }
 .terminal-panel__prompt span { flex: 0 0 auto; color: #303036; white-space: nowrap; }
-.terminal-panel__prompt input { flex: 1; min-width: 0; padding: 0; border: 0; outline: 0; color: #202024; caret-color: #202024; background: transparent; font: inherit; }
+.terminal-panel__prompt input { flex: 1; min-width: 0; padding: 0; border: 0; outline: 0; color: var(--text); caret-color: var(--text); background: transparent; font: inherit; }
 
 .inspector-panel { background: var(--panel-bg, #fff); }
 .inspector-panel__header { min-height: 72px; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 20px 20px 14px 24px; border-bottom: 1px solid var(--field-border); }
@@ -560,7 +560,7 @@ body.is-resizing-terminal {
 .inspector-details > div { padding: 14px 0; border-bottom: 1px solid var(--field-border); }
 .inspector-details dt { color: var(--text-dim); font-size: 12px; margin-bottom: 5px; }
 .inspector-details dd { margin: 0; color: var(--text); font-size: 14px; overflow-wrap: anywhere; }
-.inspector-preview { display: block; width: 100%; height: auto; border: 1px solid var(--field-border); border-radius: 12px; background: #f5f5f5; }
+.inspector-preview { display: block; width: 100%; height: auto; border: 1px solid var(--field-border); border-radius: 12px; background: var(--bg-subtle); }
 .inspector-caption { color: var(--text-dim); font-size: 13px; }
 .inspector-empty { min-height: 220px; display: grid; place-items: center; padding: 24px; border: 1px dashed var(--field-border); border-radius: 12px; color: var(--text-dim); text-align: center; }
 .inspector-live { display: flex; align-items: center; gap: 7px; margin-bottom: 14px; color: var(--text-dim); font-size: 13px; }
@@ -933,7 +933,7 @@ body.is-resizing-terminal {
 
 /* Selected: a slightly stronger gray fill (still no block border). */
 .glass-history__item--selected {
-    background: #eeeeee;
+    background: var(--bg-subtle);
 }
 
 /* Custom round selection mark (no raw checkbox square). */
@@ -1209,7 +1209,7 @@ body.is-resizing-terminal {
     margin-top: 14px;
     padding: 13px 15px;
     color: var(--text);
-    background: #ffffff;
+    background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 16px;
     text-align: left;
@@ -1273,7 +1273,7 @@ body.is-resizing-terminal {
     align-items: center;
     gap: 14px;
     padding: 16px 18px;
-    background: #ffffff;
+    background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 18px;
     box-shadow: 0 6px 20px rgba(18, 18, 20, 0.06);
@@ -1458,8 +1458,8 @@ body.is-resizing-terminal {
     padding: 12px 13px;
     border: 1px solid rgba(42, 42, 48, .13);
     border-radius: 14px;
-    color: rgb(39, 39, 39);
-    background: rgba(255, 255, 255, .98);
+    color: var(--text);
+    background: var(--card-bg);
     box-shadow: 0 10px 28px rgba(22, 22, 28, .10), 0 2px 7px rgba(22, 22, 28, .04);
     opacity: 0;
     visibility: hidden;
@@ -1716,7 +1716,7 @@ body.is-resizing-terminal {
 }
 
 .glass-pending__cancel:hover {
-    color: rgb(39, 39, 39);
+    color: var(--text);
     border-color: #cfcfd5;
 }
 
@@ -1779,14 +1779,14 @@ body.is-resizing-terminal {
     width: min(calc(100% - 28px), 760px);
     margin: 10px auto 12px;
     padding: 8px 12px;
-    border: 1px solid var(--border);
+    border: 1px solid transparent;
     border-radius: 18px;
     background: var(--bg);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: none;
 }
 
 .glass-composer:focus-within {
-    border-color: var(--border);
+    border-color: transparent;
 }
 
 /* Row 1: input on the left, status + cancel pills on the right.
@@ -2255,7 +2255,7 @@ body.is-resizing-terminal {
 }
 
 /* Inline operator confirmation card (Manual/Supervised autonomy). Uses the
-   Computer or Browser Use light theme tokens so it matches the surrounding chat. */
+   Codex Lite light theme tokens so it matches the surrounding chat. */
 .glass-confirm {
     margin: 8px 10px;
     padding: 12px 14px;
@@ -2344,7 +2344,7 @@ body.is-resizing-terminal {
     padding: 8px;
     border-radius: 10px;
     border: 1px solid #d2d8e1;
-    background: #ffffff;
+    background: var(--card-bg);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
@@ -2353,7 +2353,7 @@ body.is-resizing-terminal {
     height: 74px;
     border-radius: 6px;
     overflow: hidden;
-    background: #ffffff;
+    background: var(--card-bg);
     border: 1px solid #eef0f4;
 }
 
@@ -2500,7 +2500,7 @@ body.is-resizing-terminal {
 .glass-setupcard__title {
     font-size: 14px;
     font-weight: 600;
-    color: rgb(39, 39, 39);
+    color: var(--text);
 }
 
 .glass-setupcard__sub {
@@ -2530,8 +2530,8 @@ body.is-resizing-terminal {
 }
 
 .glass-setupcard__tab--on {
-    color: rgb(39, 39, 39);
-    background: #eeeeee;
+    color: var(--text);
+    background: var(--bg-subtle);
     border-color: transparent;
 }
 
@@ -2550,7 +2550,7 @@ body.is-resizing-terminal {
 }
 
 .glass-setupcard__hint strong {
-    color: rgb(39, 39, 39);
+    color: var(--text);
     font-weight: 600;
 }
 
@@ -2609,7 +2609,7 @@ body.is-resizing-terminal {
 }
 
 .glass-setupcard__alt:hover {
-    color: rgb(39, 39, 39);
+    color: var(--text);
 }
 
 /* Rich code blocks + Claude-style right-hand code panel ------------------- */
@@ -2704,7 +2704,7 @@ body.is-resizing-terminal {
     min-width: 320px;
     display: flex;
     flex-direction: column;
-    background: #ffffff;
+    background: var(--card-bg);
     border-left: 0;
     overflow: hidden;
     animation: code-panel-in 0.18s ease;
@@ -2779,7 +2779,7 @@ body.is-resizing-terminal {
     gap: 5px;
     padding: 4px 8px;
     border-bottom: 1px solid var(--border);
-    background: #fff;
+    background: var(--card-bg);
 }
 
 .review-tabs__tab {
@@ -2834,7 +2834,7 @@ body.is-resizing-terminal {
     height: 100%;
     overflow: auto;
     padding: 56px 0 28px;
-    background: #ffffff;
+    background: var(--card-bg);
 }
 
 .review-panel__header,
@@ -2901,7 +2901,7 @@ body.is-resizing-terminal {
 .review-line {
     min-width: max-content;
     padding: 1px 22px;
-    color: #33343a;
+    color: var(--text);
     font: 12px/1.55 'SF Mono', ui-monospace, Menlo, monospace;
     white-space: pre;
 }
@@ -2942,9 +2942,10 @@ body.is-resizing-terminal {
     align-items: center;
     gap: 6px;
     padding: 7px 18px 6px;
-    color: rgb(39, 39, 39);
+    color: var(--text);
     font-size: 14px;
-    font-weight: 550;
+    font-weight: 400;
+    line-height: 1.3;
 }
 
 .glass-nav__top {
@@ -2996,7 +2997,7 @@ body.is-resizing-terminal {
     align-items: center;
     gap: 9px;
     padding: 7px 10px;
-    color: rgb(39, 39, 39);
+    color: var(--text);
     background: transparent;
     border: 1px solid transparent;
     border-radius: 9px;
@@ -3019,7 +3020,7 @@ body.is-resizing-terminal {
     align-items: center;
     gap: 9px;
     padding: 7px 10px;
-    color: rgb(39, 39, 39);
+    color: var(--text);
     border-color: transparent;
     border-radius: 9px;
 }
@@ -3037,8 +3038,8 @@ body.is-resizing-terminal {
 /* Selected fill for sidebar items. */
 .glass-nav__primary .glass-modebtn--on,
 .glass-nav__primary .glass-modebtn--on:hover {
-    color: rgb(39, 39, 39);
-    background: #eeeeee;
+    color: var(--text);
+    background: var(--bg-subtle);
     border-color: transparent;
 }
 
@@ -3062,8 +3063,9 @@ body.is-resizing-terminal {
 .glass-history__item {
     align-items: center;
     gap: 7px;
-    min-height: 38px;
-    padding: 7px 9px;
+    min-height: 32px;
+    padding: 4px 9px;
+    font-family: inherit;
     border-radius: 10px;
 }
 
@@ -3080,7 +3082,8 @@ body.is-resizing-terminal {
 
 .glass-history__item--selected,
 .glass-history__item--selected:hover {
-    background: #eeeeee;
+    background: var(--bg-subtle);
+    border-radius: 7px;
 }
 
 .glass-history__status {
@@ -3119,10 +3122,13 @@ body.is-resizing-terminal {
 }
 
 .glass-history__item-title {
-    font-size: 12.75px;
+    font-size: 14px;
+    text-overflow: clip;
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 40px), transparent 100%);
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 40px), transparent 100%);
     font-weight: 400;
     line-height: 1.3;
-    color: rgb(39, 39, 39);
+    color: var(--text);
 }
 
 .glass-history__item-description {
@@ -3159,7 +3165,7 @@ body.is-resizing-terminal {
     align-items: center;
     gap: 9px;
     padding: 7px 9px;
-    color: rgb(39, 39, 39);
+    color: var(--text);
     background: transparent;
     border: none;
     border-radius: 9px;
@@ -3171,14 +3177,14 @@ body.is-resizing-terminal {
 
 .glass-nav__footer-button:hover:not(:disabled),
 .glass-nav__footer-button:focus-visible {
-    color: rgb(39, 39, 39);
+    color: var(--text);
     background: transparent;
 }
 
 .glass-nav__footer-button--selected,
 .glass-nav__footer-button--selected:hover:not(:disabled) {
-    color: rgb(39, 39, 39);
-    background: #eeeeee;
+    color: var(--text);
+    background: var(--bg-subtle);
 }
 
 .glass-nav__footer-button:disabled {
@@ -3209,7 +3215,7 @@ body.is-resizing-terminal {
 }
 
 .glass-nav__footer-copy>span:first-child {
-    color: rgb(39, 39, 39);
+    color: var(--text);
     font-weight: 550;
 }
 
@@ -3240,7 +3246,7 @@ body.is-resizing-terminal {
 
 .glass-account__button:hover:not(:disabled),
 .glass-account__button.is-open {
-    background: #eeeeee;
+    background: var(--bg-subtle);
 }
 
 .glass-account__avatar,
@@ -3253,7 +3259,7 @@ body.is-resizing-terminal {
     place-items: center;
     overflow: hidden;
     border-radius: 50%;
-    background: #eeeeee;
+    background: var(--bg-subtle);
     color: #66666d;
     object-fit: cover;
     font-size: 12px;
@@ -3287,7 +3293,7 @@ body.is-resizing-terminal {
     padding: 8px;
     border: .5px solid rgba(42, 42, 48, .18);
     border-radius: 18px;
-    background: rgba(255, 255, 255, .98);
+    background: var(--card-bg);
     box-shadow: 0 16px 44px rgba(22, 22, 28, .14), 0 2px 7px rgba(22, 22, 28, .05);
 }
 
@@ -3299,22 +3305,22 @@ body.is-resizing-terminal {
     margin: -1px 0 5px;
     padding: 4px 8px 8px;
     border-bottom: .5px solid rgba(42, 42, 48, .12);
-    color: rgb(39, 39, 39);
+    color: var(--text);
     font-size: 13px;
     font-weight: 550;
 }
 
 .glass-account-menu__item {
     width: 100%;
-    min-height: 39px;
+    min-height: 32px;
     display: grid;
     grid-template-columns: 21px minmax(0, 1fr) auto;
     align-items: center;
     gap: 9px;
-    padding: 7px 8px;
+    padding: 4px 8px;
     border: 0;
     border-radius: 10px;
-    color: rgb(39, 39, 39);
+    color: var(--text);
     background: transparent;
     font: inherit;
     font-size: 13px;
@@ -3326,7 +3332,7 @@ body.is-resizing-terminal {
 .glass-account-menu__item:focus-visible,
 .glass-account-menu__item.is-selected {
     outline: none;
-    background: #eeeeee;
+    background: var(--bg-subtle);
 }
 
 .glass-account-menu__item:disabled {
@@ -3360,7 +3366,7 @@ body.is-resizing-terminal {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    color: rgb(39, 39, 39);
+    color: var(--text);
     font-size: 12px;
     min-height: 23px;
 }
@@ -3370,6 +3376,10 @@ body.is-resizing-terminal {
     font-size: 10.5px;
     font-weight: 500;
 }
+
+.glass-account-menu__usage-details .glass-account-menu__local-status { justify-content: flex-start; }
+.glass-account-menu__status-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #ed9b40; }
+.glass-account-menu__status-dot.is-active { background: #36bd78; }
 
 .glass-account-menu__usage-details strong.is-connected {
     color: #4f7d5c;
@@ -3390,8 +3400,8 @@ body.is-resizing-terminal {
     padding: 6px 9px;
     border: .5px solid rgba(42, 42, 48, .16);
     border-radius: 9px;
-    color: rgb(39, 39, 39);
-    background: #fff;
+    color: var(--text);
+    background: var(--card-bg);
     font: 500 11.5px/1.2 Inter, system-ui, sans-serif;
     text-align: center;
     cursor: pointer;
@@ -3399,13 +3409,13 @@ body.is-resizing-terminal {
 
 .glass-account-menu__connect:hover,
 .glass-account-menu__upgrade:hover {
-    background: #eeeeee;
+    background: var(--bg-subtle);
 }
 
 .glass-account-menu__upgrade {
     color: #fff;
     background: #222226;
-    border-color: #222226;
+    border: 0;
 }
 
 .glass-account-menu__upgrade:hover {
@@ -3442,13 +3452,13 @@ body.is-resizing-terminal {
     padding: 28px;
     border: .5px solid rgba(42, 42, 48, .2);
     border-radius: 20px;
-    color: rgb(39, 39, 39);
-    background: #fff;
+    color: var(--text);
+    background: var(--card-bg);
     box-shadow: 0 24px 70px rgba(22, 22, 28, .18), 0 2px 8px rgba(22, 22, 28, .06);
 }
 
 .plus-plan-card__close { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; color: #77777e; background: transparent; font: 300 24px/1 Inter, system-ui, sans-serif; cursor: pointer; }
-.plus-plan-card__close:hover { color: rgb(39, 39, 39); background: #f1f1f2; }
+.plus-plan-card__close:hover { color: var(--text); background: #f1f1f2; }
 .plus-plan-card__eyebrow { color: rgb(142, 143, 144); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 .plus-plan-card h2 { margin: 8px 0 20px; font-size: 28px; font-weight: 600; }
 .plus-plan-card__price { display: flex; align-items: baseline; margin-bottom: 15px; }
@@ -3457,15 +3467,15 @@ body.is-resizing-terminal {
 .plus-plan-card__price span { margin-left: 8px; color: #77777e; font-size: 11px; }
 .plus-plan-card > div > p { margin: 0 0 20px; color: #66666d; font-size: 13px; line-height: 1.45; }
 
-.plus-plan-card__speed { min-height: 42px; display: flex; align-items: center; justify-content: space-between; margin: 8px 0 16px; padding: 0 13px; border-radius: 10px; background: #f3f3f4; color: #77777e; font-size: 12px; }
-.plus-plan-card__speed strong { color: rgb(39, 39, 39); font-weight: 550; }
+.plus-plan-card__speed { min-height: 42px; display: flex; align-items: center; justify-content: space-between; margin: 8px 0 16px; padding: 0 13px; border-radius: 10px; background: var(--bg-subtle); color: #77777e; font-size: 12px; }
+.plus-plan-card__speed strong { color: var(--text); font-weight: 550; }
 .plus-plan-card__checkout { width: 100%; min-height: 43px; border: 0; border-radius: 999px; color: #fff; background: #171717; font: 600 13px/1 Inter, system-ui, sans-serif; cursor: pointer; }
 .plus-plan-card__checkout:hover { background: #292929; }
 .plus-plan-card__checkout:disabled { color: #a5a5aa; background: #e8e8ea; cursor: wait; }
-.plus-plan-card__error { margin: -8px 0 0; color: #b42318; font-size: 11px; line-height: 1.4; }
+.plus-plan-card .plus-plan-card__error { margin: 10px 0 0; color: #b42318; font-size: 12px; line-height: 1.4; }
 
 .plus-plan-card ul { display: grid; gap: 13px; margin: 24px 0 0; padding: 0; list-style: none; }
-.plus-plan-card li { display: flex; align-items: flex-start; gap: 10px; color: rgb(39, 39, 39); font-size: 12.5px; line-height: 1.35; }
+.plus-plan-card li { display: flex; align-items: flex-start; gap: 10px; color: var(--text); font-size: 12.5px; line-height: 1.35; }
 .plus-plan-card li svg { flex: 0 0 17px; width: 17px; height: 17px; fill: none; stroke: #159455; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .plus-plan-card .plus-plan-card__notice { margin: 24px 0 0; color: rgb(142, 143, 144); font-size: 10.5px; line-height: 1.45; }
 
@@ -3499,7 +3509,7 @@ body.is-resizing-terminal {
     margin: 0 2px 4px;
     padding: 7px 8px;
     color: var(--text-dim);
-    background: #ffffff;
+    background: var(--card-bg);
     border: 1px solid #dedee3;
     border-radius: 9px;
     font-size: 10px;
@@ -3507,7 +3517,7 @@ body.is-resizing-terminal {
 
 /* The one-time code itself: plain text, monospaced, easy to read out. */
 .glass-account-code__value {
-    color: rgb(39, 39, 39);
+    color: var(--text);
     font: 600 11.5px/1.4 'SF Mono', ui-monospace, Menlo, monospace;
     letter-spacing: 0.06em;
 }
@@ -3515,8 +3525,8 @@ body.is-resizing-terminal {
 /* Plain text action buttons (Copy / Reopen) — no icons, no decoration. */
 .glass-account-code button {
     padding: 2px 6px;
-    color: rgb(39, 39, 39);
-    background: #eeeeee;
+    color: var(--text);
+    background: var(--bg-subtle);
     border: none;
     border-radius: 5px;
     font-family: inherit;
@@ -3715,7 +3725,7 @@ body.is-resizing-terminal {
 
 .glass-recorder__close:hover {
     color: var(--text);
-    background: #eeeeef;
+    background: var(--bg-subtle);
 }
 
 .glass-recorder__preview {
@@ -3818,7 +3828,7 @@ body.is-resizing-terminal {
 
 .glass-recorder__record {
     color: var(--text);
-    background: #ffffff;
+    background: var(--card-bg);
     border: 1px solid #d8d8dd;
     box-shadow: 0 1px 3px rgba(20, 20, 24, 0.07);
 }
@@ -3833,7 +3843,7 @@ body.is-resizing-terminal {
     width: 9px;
     height: 9px;
     display: inline-block;
-    background: #ffffff;
+    background: var(--card-bg);
     border-radius: 2px;
 }
 
@@ -3845,7 +3855,7 @@ body.is-resizing-terminal {
 
 .glass-recorder__record:hover,
 .glass-recorder__secondary:hover {
-    background: #f2f2f3;
+    background: var(--bg-subtle);
 }
 
 .glass-recorder__stop:hover:not(:disabled) {
@@ -3927,8 +3937,8 @@ body.is-resizing-terminal {
 
 .glass-playbooks__save {
     border: none;
-    background: #eeeeee;
-    color: rgb(39, 39, 39);
+    background: var(--bg-subtle);
+    color: var(--text);
     border-radius: 999px;
     padding: 4px 10px;
     font-size: 12px;
@@ -3960,13 +3970,13 @@ body.is-resizing-terminal {
 }
 
 .glass-playbook__run:hover {
-    background: #f3f3f3;
+    background: var(--bg-subtle);
 }
 
 .glass-playbook__name {
     font-size: 13px;
     font-weight: 600;
-    color: rgb(39, 39, 39);
+    color: var(--text);
 }
 
 .glass-playbook__goal {
@@ -3990,8 +4000,8 @@ body.is-resizing-terminal {
 }
 
 .glass-playbook__delete:hover {
-    background: #f3f3f3;
-    color: rgb(39, 39, 39);
+    background: var(--bg-subtle);
+    color: var(--text);
 }
 
 .glass-playbooks__empty {
@@ -4020,7 +4030,7 @@ body.is-resizing-terminal {
 
 .glass-playbook__time:hover,
 .glass-playbook__time:focus {
-    background: #f3f3f3;
+    background: var(--bg-subtle);
     outline: none;
 }
 
@@ -4035,12 +4045,12 @@ body.is-resizing-terminal {
 }
 
 .glass-playbook__toggle:hover {
-    background: #f3f3f3;
+    background: var(--bg-subtle);
 }
 
 .glass-playbook__toggle--on {
-    background: #eeeeee;
-    color: rgb(39, 39, 39);
+    background: var(--bg-subtle);
+    color: var(--text);
     font-weight: 600;
 }
 
@@ -4053,7 +4063,7 @@ body.is-resizing-terminal {
     width: min(calc(100% - 28px), 760px);
     margin: 0 auto 6px;
     padding: 7px 10px;
-    background: #f5f5f5;
+    background: var(--bg-subtle);
     border-radius: 10px;
 }
 
@@ -4075,7 +4085,7 @@ body.is-resizing-terminal {
 .glass-mailchip__subject {
     font-size: 12.5px;
     font-weight: 600;
-    color: rgb(39, 39, 39);
+    color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -4103,5 +4113,61 @@ body.is-resizing-terminal {
 
 .glass-mailchip__remove:hover {
     background: #e9e9e9;
-    color: rgb(39, 39, 39);
+    color: var(--text);
 }
+
+/* Appearance: keep the workspace quieter than its surrounding navigation. */
+:root[data-theme='dark'] {
+    color-scheme: dark;
+    --bg: #181818;
+    --app-bg: #151515;
+    --panel-bg: #181818;
+    --bg-subtle: #333333;
+    --card-bg: #282828;
+    --field-bg: #202020;
+    --border: #383838;
+    --field-border: #484848;
+    --text: #eeeeee;
+    --text-dim: #aaaaaa;
+    --accent: #dddddd;
+    --accent-fg: #181818;
+    --user-bubble: #212121;
+    --code-bg: #202020;
+}
+:root[data-theme='dark'] .glass-nav { background: #111111; }
+:root[data-theme='dark'] .environment-card,
+:root[data-theme='dark'] .environment-sidebar { background: #1f1f1f; }
+:root[data-theme='dark'] .glass-history__item--selected,
+:root[data-theme='dark'] .glass-history__item--selected:hover { background: #353535; }
+:root[data-theme='dark'] .glass-main,
+:root[data-theme='dark'] .glass-conversation { background: #151515; }
+:root[data-theme='dark'] .workspace-bar { background: #151515; }
+:root[data-theme='dark'] .code-panel,
+:root[data-theme='dark'] .project-workspace,
+:root[data-theme='dark'] .terminal-panel { background: #181818; }
+:root[data-theme='dark'] .glass-composer { background: #20201f; }
+:root[data-theme='dark'] .glass-account-menu { background: #20201f; }
+:root[data-theme='dark'] .glass-account__button.is-open,
+:root[data-theme='dark'] .glass-account__button.is-open:hover:not(:disabled) { background: transparent; }
+:root[data-theme='dark'] .glass-app:not(.glass-app--navhidden) .workspace-bar {
+    background: linear-gradient(to right, #111111 0 var(--chat-nav-width, 296px), transparent var(--chat-nav-width, 296px));
+}
+:root[data-theme='dark'] .glass-app:not(.glass-app--navhidden) .workspace-bar__left {
+    background: #111111;
+}
+:root[data-theme='dark'] .project-workspace { border-color: var(--border); }
+:root[data-theme='dark'] .plus-upgrade__backdrop { background: #0008; }
+:root[data-theme='dark'] .plus-plan-card { border-color: var(--border); }
+:root[data-theme='dark'] .plus-plan-card h2,
+:root[data-theme='dark'] .plus-plan-card__price strong,
+:root[data-theme='dark'] .plus-plan-card__speed strong { color: var(--text); }
+:root[data-theme='dark'] .plus-plan-card .plus-plan-card__error { color: #ff9696; }
+:root[data-theme='dark'] .review-line--add { background: #193426; color: #a8dfba; }
+:root[data-theme='dark'] .review-line--remove { background: #3a2020; color: #f1acac; }
+.settings-back { display: inline-flex; align-items: center; gap: 8px; padding: 8px 0; margin-bottom: 20px; border: 0; background: transparent; color: var(--text); cursor: pointer; font: inherit; }
+.settings-back:hover { color: var(--text-dim); }
+.settings-back:focus-visible { outline: 2px solid var(--text-dim); outline-offset: 4px; border-radius: 4px; }
+.desktop-appearance { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; color: var(--text); }
+.desktop-appearance select { padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--field-bg); }
+.local-ai-setup { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:11px; line-height:1.5; color:var(--text-dim); }
+.local-ai-setup button { flex-shrink:0; border:0; border-radius:6px; padding:4px 7px; color:var(--text); background:var(--bg-subtle); cursor:pointer; }
