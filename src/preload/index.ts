@@ -81,6 +81,7 @@ const bridge: GlassBridge = {
     startGitHubLogin: (): Promise<GitHubDeviceChallenge> =>
         ipcRenderer.invoke('github-auth:start'),
     logoutGitHub: (): Promise<void> => ipcRenderer.invoke('github-auth:logout'),
+    localAI: (action: 'status' | 'prepare' | 'start' | 'pause') => ipcRenderer.invoke(`local-ai:${action}`),
     getManagedAccountStatus: (): Promise<ManagedAccountStatus> =>
         ipcRenderer.invoke('managed:status'),
     startPlusCheckout: (): Promise<void> => ipcRenderer.invoke('managed:checkout'),
@@ -148,11 +149,11 @@ const browserWorkspace: BrowserWorkspaceBridge = {
 contextBridge.exposeInMainWorld('browserWorkspace', browserWorkspace)
 
 // ---------------------------------------------------------------------------
-// Operator bridge (merged Computer or Browser Use engine) — window.operator
+// Operator bridge (merged Codex Lite engine) — window.operator
 // ---------------------------------------------------------------------------
 //
 // The autonomous operator engine is vendored into `src/main/operator` and wired
-// through its own `op:`-prefixed IPC channels so it never collides with Computer or Browser Use
+// through its own `op:`-prefixed IPC channels so it never collides with Codex Lite
 // Copilot's own `glass` channels. This bridge is the ONLY path from the sandbox
 // renderer to those channels: renderers can start/steer a task and subscribe to
 // its activity, but capture, reasoning, and input synthesis have no channel

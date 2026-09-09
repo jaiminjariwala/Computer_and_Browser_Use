@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { LocalAISetup } from './LocalAISetup'
 import type { ConfigStatus, GitHubAuthStatus, GlassError, SessionListItem, SessionSummary, SessionView, TurnCapture, TurnView, WorkspaceContext } from '@shared/types'
 import type { ConfirmationRequest, LoopStateView, Playbook } from '@op-shared/types'
 import type { SelectedEmail } from '@shared/types'
 import { Settings } from './Settings'
+import { PlusUpgradeModal } from './PlusUpgradeModal'
 import { ChatSidebar } from './ChatSidebar'
 import { VideoRecorder } from './VideoRecorder'
 import { extractVideoFrames, formatMediaDuration } from './video'
@@ -20,7 +22,6 @@ import {
     type StepItem
 } from './operator'
 import { renderPdfToImages } from './pdf'
-import { curateForMode, friendlyLabel, type CuratedModels, type ModelAvailability } from './models'
 import { routeIntent, isWorkspaceTask } from './intentRouter'
 import { VoiceBars } from '../voice-lib'
 import { useSmoothDictation as useDictation } from '../voice-lib-v2'
@@ -80,14 +81,6 @@ import {
  * rendered as Markdown. The header exposes History, New, and Settings panels.
  */
 
-function modelAvailability(status: ConfigStatus | null): ModelAvailability {
-    return {
-        gateway: status?.hasCredentials ?? false,
-        openrouter: status?.hasOpenrouter ?? false,
-        gemini: status?.hasGemini ?? false
-    }
-}
-
 function usableSelectedModel(status: ConfigStatus): string {
     const selected = status.model.trim()
     if (selected.startsWith('gemini') && status.hasGemini) return selected
@@ -104,6 +97,8 @@ export function App(): React.JSX.Element {
     const [state, setState] = useState<ConversationState>(() => initialConversationState())
     const [draft, setDraft] = useState('')
     const [showSettings, setShowSettings] = useState(false)
+    const [accessDialogOpen, setAccessDialogOpen] = useState(false)
+    const checkingAccess = useRef(false)
     // The code artifact shown in the right-hand panel (Claude-style), or null.
     const [codeArtifact, setCodeArtifact] = useState<CodeArtifact | null>(null)
     const [inspectorArtifact, setInspectorArtifact] = useState<InspectorArtifact | null>(null)
@@ -175,10 +170,7 @@ export function App(): React.JSX.Element {
     const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null)
     const [summary, setSummary] = useState<SessionSummary | null>(null)
     const [currentModel, setCurrentModel] = useState('')
-    const [curated, setCurated] = useState<CuratedModels>({ recommended: [], others: [] })
-    const [showModels, setShowModels] = useState(false)
-    const [showAllModels, setShowAllModels] = useState(false)
-    // Operator controls (merged from Computer or Browser Use): where the agent acts, how
+    // Operator controls (merged from Codex Lite): where the agent acts, how
     // much it may do on its own, and its step cap. Wired to the operator engine
     // in a later stage; here they own the header UI next to New/Instructions/Settings.
     // Computer/Browser Use is an internal capability, never a separate user mode.
@@ -455,7 +447,7 @@ export function App(): React.JSX.Element {
                                 id: sourceId,
                                 name: `Vision screenshot ${current.length + 1}`,
                                 thumbnailUrl: step.previewDataUrl,
-                                detail: `Captured during Computer or Browser Use step ${step.index}`
+                                detail: `Captured during Codex Lite step ${step.index}`
                             }, ...current])
                     }
                 }
@@ -597,73 +589,6 @@ export function App(): React.JSX.Element {
         baseURLRef.current = status.baseURL
     }, [])
 
-    const openModels = useCallback(() => {
-        setShowModels((v) => !v)
-        // Only advertise models backed by a credential that is actually
-        // available. The old offline defaults made "Gemini" look connected
-        // even when the Mac had no Gemini key at all.
-        setCurated(curateForMode(operatorMode, [], modelAvailability(configStatus)))
-        const configBridge = getConfigBridge()
-        const chatBridge = getChatBridge()
-        const statusPromise = configBridge
-            ? configBridge.getConfigStatus().catch(() => configStatus)
-            : Promise.resolve(configStatus)
-        const modelsPromise = chatBridge && typeof chatBridge.listModels === 'function'
-            ? chatBridge.listModels().catch(() => [])
-            : Promise.resolve([] as string[])
-        void Promise.all([statusPromise, modelsPromise]).then(([status, list]) => {
-            if (status) {
-                setConfigStatus(status)
-                setCurrentModel(usableSelectedModel(status))
-            }
-            setCurated(curateForMode(operatorMode, list, modelAvailability(status)))
-        })
-    }, [operatorMode, configStatus])
-
-    const selectModel = useCallback((m: string) => {
-        setCurrentModel(m)
-        setShowModels(false)
-        // Operator mode: the agent reads its model from the OPERATOR provider
-        // chain (operator-config.json), NOT the chat gateway config. Route the
-        // pick to the provider that serves it and persist there — previously
-        // the pick only wrote the chat config, so the agent silently kept
-        // running its old model.
-        if (operatorMode) {
-            const op = getOperatorBridge()
-            if (op && typeof op.getProviders === 'function' && typeof op.saveProviders === 'function') {
-                void op
-                    .getProviders()
-                    .then((view) => {
-                        const targetId = m.startsWith('openrouter')
-                            ? 'openrouter'
-                            : m.startsWith('gemini')
-                                ? 'gemini'
-                                : view.chain.providerIds[0] ?? null
-                        if (!targetId || !view.providers.some((p) => p.id === targetId)) return
-                        // Omitted apiKey keeps each provider's stored key.
-                        const providers = view.providers.map((p) =>
-                            p.id === targetId ? { ...p, model: m } : p
-                        )
-                        return op.saveProviders?.({ chain: view.chain, providers })
-                    })
-                    .catch(() => undefined)
-            }
-            return
-        }
-        const cb = getConfigBridge()
-        if (cb) {
-            // Persist via saveConfig; empty apiKey keeps the stored key.
-            void cb
-                .saveConfig({
-                    baseURL: baseURLRef.current,
-                    model: m,
-                    apiKey: '',
-                    ...(m.startsWith('gemini') ? { geminiModel: m } : {}),
-                    ...(m.startsWith('openrouter') ? { openrouterModel: m } : {})
-                })
-                .catch(() => undefined)
-        }
-    }, [operatorMode])
 
     // Start an operator task for `goal` in the given environment: record it in
     // the operator conversation and kick off the engine. Shared by the explicit
@@ -691,7 +616,7 @@ export function App(): React.JSX.Element {
                 setState((s) =>
                     setError(s, {
                         kind: 'render-failed',
-                        message: 'Computer or Browser Use is not connected yet. Your goal was kept.',
+                        message: 'Codex Lite is not connected yet. Your goal was kept.',
                         recoverable: true
                     })
                 )
@@ -881,7 +806,7 @@ export function App(): React.JSX.Element {
         })
     }, [chatSessionId])
 
-    const submit = useCallback(() => {
+    const submit = useCallback(async () => {
         if (projectRunning) return
         if (authStatus?.state !== 'signed-in') {
             setState((current) =>
@@ -906,12 +831,30 @@ export function App(): React.JSX.Element {
         }
 
         const captures = staged.flatMap((attachment) => attachment.captures)
+        if (captures.length) {
+            setState(current => setError(current, {kind:'render-failed',message:'The local starter model supports text and code, not images or video. Remove visual attachments to continue.',recoverable:true}))
+            return
+        }
         const hasCaptures = captures.length > 0
         // A staged email counts as content in copilot mode (like attachments).
         const emailStaged = stagedEmail !== null
         // Images, PDFs, and sampled videos can be sent without typed text.
         if (!isSubmittable(draft) && !hasCaptures && !emailStaged) {
             return
+        }
+        if (checkingAccess.current) return
+        checkingAccess.current = true
+        try {
+            const access = await window.glass.getManagedAccountStatus()
+            if (!access.authenticated || access.user?.plan !== 'plus' || access.user.subscription_status !== 'active') {
+                setAccessDialogOpen(true)
+                return // Keep the draft and attachments intact for after checkout.
+            }
+        } catch {
+            setAccessDialogOpen(true)
+            return
+        } finally {
+            checkingAccess.current = false
         }
         // Fold a staged Mail message into the outgoing text so the model gets
         // the exact email (sender/subject/body) alongside the user's ask.
@@ -1572,6 +1515,7 @@ export function App(): React.JSX.Element {
 
     return (
         <CodePanelContext.Provider value={codePanelApi}>
+            {accessDialogOpen && <PlusUpgradeModal onClose={() => setAccessDialogOpen(false)} />}
             <div
                 className={`glass-app${navOpen ? '' : ' glass-app--navhidden'}${projectOpen || codeArtifact || inspectorArtifact ? ' glass-app--codeopen' : ''}`}
                 style={{ '--chat-nav-width': `${navWidth}px` } as React.CSSProperties}
@@ -1680,7 +1624,7 @@ export function App(): React.JSX.Element {
                     {showSettings ? (
                         <div className="glass-panel">
                             <div className="glass-settings__scroll">
-                                <Settings onConfigStatusChange={applyConfigStatus} />
+                                <Settings onConfigStatusChange={applyConfigStatus} onBack={() => setShowSettings(false)} />
                             </div>
                         </div>
                     ) : (
@@ -1971,6 +1915,7 @@ export function App(): React.JSX.Element {
                     )}
                     {!showSettings && (
                         <div className="glass-composer">
+                            <LocalAISetup />
                             <div className="glass-composer__top">
                                 <div className="glass-composer__text">
                                     <textarea
@@ -1981,7 +1926,7 @@ export function App(): React.JSX.Element {
                                                 ? 'Sign in with GitHub to start chatting…'
                                                 : dictation.listening
                                                 ? 'Listening…'
-                                                : 'Message Computer or Browser Use…'
+                                                : 'Message Codex Lite…'
                                         }
                                         value={draft}
                                         onChange={(e) => setDraft(e.target.value)}
@@ -2125,102 +2070,9 @@ export function App(): React.JSX.Element {
                                     />
                                 </div>
                                 <div className="glass-composer__actions">
-                                    {currentModel && <div className="glass-model-wrap">
-                                        {showModels && (
-                                            <>
-                                                <div
-                                                    className="glass-model-backdrop"
-                                                    onClick={() => setShowModels(false)}
-                                                />
-                                                <div className="glass-model-menu" role="menu">
-                                                    {curated.recommended.length === 0 &&
-                                                        curated.others.length === 0 ? (
-                                                        <div className="glass-model-empty">No models found</div>
-                                                    ) : (
-                                                        <>
-                                                            {curated.recommended.length > 0 && (
-                                                                <div className="glass-model-section">
-                                                                    Recommended
-                                                                </div>
-                                                            )}
-                                                            {curated.recommended.map((m) => (
-                                                                <button
-                                                                    type="button"
-                                                                    key={m.id}
-                                                                    className={`glass-model-item${m.id === currentModel ? ' glass-model-item--on' : ''}`}
-                                                                    onClick={() => selectModel(m.id)}
-                                                                    title={m.id}
-                                                                >
-                                                                    <span className="glass-model-item__check">
-                                                                        {m.id === currentModel ? <CheckIcon /> : null}
-                                                                    </span>
-                                                                    <span className="glass-model-item__text">
-                                                                        <span className="glass-model-item__name">{m.label}</span>
-                                                                        {m.sublabel && (
-                                                                            <span className="glass-model-item__sub">
-                                                                                ({m.sublabel})
-                                                                            </span>
-                                                                        )}
-                                                                    </span>
-                                                                </button>
-                                                            ))}
-
-                                                            {curated.others.length > 0 && (
-                                                                <button
-                                                                    type="button"
-                                                                    className="glass-model-toggle"
-                                                                    onClick={() => setShowAllModels((v) => !v)}
-                                                                >
-                                                                    <CaretIcon open={showAllModels} />
-                                                                    {showAllModels
-                                                                        ? 'Hide other models'
-                                                                        : `Show all models (${curated.others.length})`}
-                                                                </button>
-                                                            )}
-
-                                                            {showAllModels &&
-                                                                curated.others.map((m) => (
-                                                                    <button
-                                                                        type="button"
-                                                                        key={m.id}
-                                                                        className={`glass-model-item${m.id === currentModel ? ' glass-model-item--on' : ''}`}
-                                                                        onClick={() => selectModel(m.id)}
-                                                                        title={m.id}
-                                                                    >
-                                                                        <span className="glass-model-item__check">
-                                                                            {m.id === currentModel ? (
-                                                                                <CheckIcon />
-                                                                            ) : null}
-                                                                        </span>
-                                                                        <span className="glass-model-item__text">
-                                                                            <span className="glass-model-item__name">{m.label}</span>
-                                                                            {m.sublabel && (
-                                                                                <span className="glass-model-item__sub">
-                                                                                    ({m.sublabel})
-                                                                                </span>
-                                                                            )}
-                                                                        </span>
-                                                                    </button>
-                                                                ))}
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </>
-                                        )}
-                                        <button
-                                            type="button"
-                                            className="glass-model"
-                                            onClick={openModels}
-                                            disabled={!signedIn}
-                                            title={currentModel ? `Model: ${currentModel}` : 'Choose model'}
-                                            aria-label="Choose model"
-                                        >
-                                            <span className="glass-model__name">
-                                                {currentModel ? friendlyLabel(currentModel) : 'Model'}
-                                            </span>
-                                            <CaretIcon open={showModels} />
-                                        </button>
-                                    </div>}
+                                    <span className="glass-model" title="Server-managed free models. Availability depends on shared provider quotas.">
+                                        Qwen Coder · Local
+                                    </span>
                                     {dictation.supported && (
                                         <button
                                             type="button"

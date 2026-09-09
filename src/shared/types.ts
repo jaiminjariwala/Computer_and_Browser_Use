@@ -378,6 +378,7 @@ export interface GlassBridge {
     logoutGitHub(): Promise<void>
     /** Load plan and usage from the publisher-managed backend. */
     getManagedAccountStatus(): Promise<ManagedAccountStatus>
+    localAI(action: 'status' | 'prepare' | 'start' | 'pause'): Promise<import('./local-ai').LocalAIStatus>
     /** Open Stripe-hosted Plus Checkout in the default browser. */
     startPlusCheckout(): Promise<void>
     /** Open Stripe's customer portal for an existing subscriber. */

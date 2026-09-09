@@ -13,6 +13,7 @@ import {
 } from './config'
 import { registerGitHubAuthIpc } from './github-auth'
 import { ManagedBackendClient } from './managed-backend'
+import { LocalAI } from './local-ai'
 import { WorkspaceService } from './workspace'
 import { WorkspaceAgent } from './workspace-agent'
 import { registerWorkspaceIpc } from './workspace-ipc'
@@ -43,9 +44,9 @@ import { WindowManager } from './windows'
 import { checkScreenPermission } from './permissions'
 import { CaptureService } from './capture'
 import { CaptureOrchestrator } from './capture-orchestrator'
-// Merged Computer or Browser Use engine (autonomous computer-use agent). Vendored under
+// Merged Codex Lite engine (autonomous computer-use agent). Vendored under
 // `./operator` as a self-contained subtree with `op:`-prefixed IPC channels so
-// it never collides with Computer or Browser Use's own services.
+// it never collides with Codex Lite's own services.
 import { createOperatorServices } from './operator/main/bootstrap/services'
 import { createStartGoalHandler } from './operator/main/bootstrap/start-gate-runner'
 import { createPlaybookScheduler, type PlaybookScheduler } from './operator/main/scheduler'
@@ -63,7 +64,9 @@ import { createEmergencyStopManager, type HotkeyManager as OperatorHotkeyManager
 
 // Display name shown in the macOS menu bar / Dock (in dev this is otherwise
 // "Electron"). The packaged app name comes from electron-builder's productName.
-app.setName('Computer or Browser Use')
+// Keep the legacy data directory so upgrades retain chats, credentials and memory.
+app.setPath('userData', join(app.getPath('appData'), 'Computer or Browser Use'))
+app.setName('Codex Lite')
 
 let mainWindow: BrowserWindow | null = null
 let hotkeyManager: HotkeyManager | null = null
@@ -140,7 +143,7 @@ async function readWorkspaceContext(): Promise<WorkspaceContext> {
 }
 
 /**
- * Enforce a single running instance. Computer or Browser Use is a global-hotkey app, so a
+ * Enforce a single running instance. Codex Lite is a global-hotkey app, so a
  * stray second instance (e.g. left over from a dev restart) would grab the
  * Cmd+Shift+D shortcut and pop up its OWN window when you capture. The lock
  * makes any second launch quit immediately and just focus the window we already
@@ -199,7 +202,7 @@ function toggleSidebar(): void {
 function createWindow(): void {
     // Never create a second sidebar: if one already exists, just reveal it.
     // Without this guard an accidental call would orphan the old window,
-    // leaving a stray "extra" Computer or Browser Use window on screen.
+    // leaving a stray "extra" Codex Lite window on screen.
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.show()
         mainWindow.focus()
@@ -354,16 +357,34 @@ app.whenReady().then(async () => {
 
     // AI Gateway client, backed by the Config / Credential Store so settings
     // changes take effect on the next request (Req 7.2).
+    const localAI = new LocalAI(app.getPath('userData'))
+    app.on('before-quit', () => localAI.dispose())
+    for (const action of ['status', 'start', 'pause'] as const) {
+        ipcMain.handle(`local-ai:${action}`, async (event) => {
+            if (!mainWindow || event.sender !== mainWindow.webContents) throw new Error('Untrusted local AI request')
+            if (action === 'start') void localAI.start(true)
+            if (action === 'pause') await localAI.pause()
+            return localAI.status()
+        })
+    }
+    ipcMain.handle('local-ai:prepare', (event) => {
+        if (!mainWindow || event.sender !== mainWindow.webContents) throw new Error('Untrusted local AI request')
+        void localAI.start()
+        return localAI.status()
+    })
     const aiClient = new GatewayAIClient({
+        textOnly: true,
         // Signed-in release users reach the publisher-managed service first;
         // no provider key crosses into the app. Developer-owned local keys
         // remain available as an explicit fallback during backend development.
-        getManagedProvider: () => managedBackend!.provider(),
+        getManagedProvider: () => {
+            return localAI.provider()
+        },
         getConfig: () => configStore.readConfig(),
         getApiKey: () => configStore.getApiKey(),
         // Built-in free hosted providers (OpenRouter -> Gemini), tried after
         // the user's own (corporate/personal) gateway.
-        getFallbackProviders: () => configStore.getHostedFallbacks(),
+        getFallbackProviders: async () => [],
         // Automatic memory: durable user facts the summarize pass extracts
         // land in the same auditable store as explicit "remember ..." writes.
         onUserFacts: (facts) => {
@@ -577,6 +598,7 @@ app.whenReady().then(async () => {
         if (status.state !== 'signed-in') {
             throw new Error('Sign in with GitHub before starting a chat.')
         }
+        await managedBackend!.requireAccess()
     }
     const projectFiles = new WorkspaceService(app.getPath('userData'))
     await projectFiles.init()
@@ -769,11 +791,11 @@ app.whenReady().then(async () => {
     })
 
     // -----------------------------------------------------------------------
-    // Merged Computer or Browser Use engine
+    // Merged Codex Lite engine
     // -----------------------------------------------------------------------
     // Construct + wire the autonomous operator engine. Every main -> renderer
     // operator event targets the existing Sidebar window (getHostWindow), so
-    // the operator's live activity renders inside the Computer or Browser Use chat rather
+    // the operator's live activity renders inside the Codex Lite chat rather
     // than a separate Console_Window. The engine owns its own (isolated)
     // provider config + session store and drives the Control_Indicator overlay
     // and the sandboxed-desktop noVNC view through its own Window Manager.
@@ -782,7 +804,11 @@ app.whenReady().then(async () => {
     const embeddedEnvironment = new EmbeddedBrowserEnvironment(embeddedBrowser)
     const operatorServices = createOperatorServices({ getHostWindow: () => mainWindow, browserEnvironment: embeddedEnvironment, onBrowserStop: () => embeddedEnvironment.cancel() })
     app.on('before-quit', () => embeddedBrowser.dispose())
-    const handleStartGoal = createStartGoalHandler(operatorServices)
+    const startOperatorGoal = createStartGoalHandler(operatorServices)
+    const handleStartGoal: typeof startOperatorGoal = async input => {
+        await requireSignedIn()
+        throw new Error('Visual computer/browser automation needs a vision model. The local starter model currently supports text and code only.')
+    }
     const operatorIpc = wireOperatorIpc(operatorServices, handleStartGoal)
     disposeOperatorIpc = operatorIpc.disposeOperatorIpc
     disposeOperatorConfigIpc = operatorIpc.disposeConfigIpc
@@ -815,7 +841,7 @@ app.whenReady().then(async () => {
     })
     playbookScheduler.start()
 
-    // Seed the operator's (isolated) provider chain from Computer or Browser Use's stored
+    // Seed the operator's (isolated) provider chain from Codex Lite's stored
     // credentials, so the operator runs on whatever the user already configured
     // with no separate operator setup. Re-seeded every launch. The chain is the
     // user's primary OpenAI-compatible provider, then the same free hosted
@@ -824,68 +850,11 @@ app.whenReady().then(async () => {
     // `config:save` (via the `onSaved` hook above), keeping the operator in sync
     // with keys the user adds while the app is running.
     seedOperatorProviders = async (): Promise<void> => {
-        try {
-            const glassCfg = await configStore.readConfig()
-            const providers: Array<{
-                id: string
-                kind: 'openai-compatible' | 'local'
-                baseURL: string
-                model: string
-                requiresKey: boolean
-                apiKey?: string
-            }> = []
-
-            const primaryKey = await configStore.getApiKey()
-            if (
-                primaryKey &&
-                primaryKey.trim().length > 0 &&
-                glassCfg.baseURL.trim().length > 0 &&
-                glassCfg.model.trim().length > 0
-            ) {
-                providers.push({
-                    id: 'primary',
-                    kind: 'openai-compatible',
-                    baseURL: glassCfg.baseURL.trim(),
-                    model: glassCfg.model.trim(),
-                    requiresKey: true,
-                    apiKey: primaryKey
-                })
-            }
-
-            // Order matters: the operator tries these in sequence, so lead with
-            // Gemini (the strongest free vision + tool-calling model), then the
-            // OpenRouter free router. The user's primary provider (added above
-            // when configured) stays first.
-            const hosted: Array<[HostedFallbackId, string]> = [
-                ['gemini', glassCfg.geminiModel ?? ''],
-                ['openrouter', glassCfg.openrouterModel ?? '']
-            ]
-            for (const [id, modelOverride] of hosted) {
-                const key = await configStore.getHostedKey(id)
-                if (!key || key.trim().length === 0) continue
-                const meta = HOSTED_FALLBACKS[id]
-                providers.push({
-                    id,
-                    kind: 'openai-compatible',
-                    baseURL: meta.baseURL,
-                    model:
-                        modelOverride.trim().length > 0 ? modelOverride.trim() : meta.defaultModel,
-                    requiresKey: true,
-                    apiKey: key
-                })
-            }
-
-            if (providers.length > 0) {
-                await operatorServices.configStore.saveProviders({
-                    chain: { providerIds: providers.map((p) => p.id) },
-                    providers
-                })
-            }
-        } catch {
-            // Best-effort: a seeding failure just leaves the operator
-            // unconfigured, which surfaces as a normal "configure a provider"
-            // error on start.
-        }
+        await operatorServices.configStore.saveProviders({
+            chain: { providerIds: ['local-ollama'] },
+            providers: [{id:'local-ollama',kind:'local',baseURL:'http://127.0.0.1:11435/v1',
+                model:'qwen2.5-coder:1.5b',requiresKey:false}]
+        })
     }
     await seedOperatorProviders()
 
