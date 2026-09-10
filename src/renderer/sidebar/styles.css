@@ -168,7 +168,17 @@ body {
 /* The Environment card floats above the workspace, but its visual lane still
    belongs to it. Center the reading column and composer in the unobstructed
    canvas, matching the balance of Codex without turning the card into a rail. */
-.glass-workspace--environment-open .glass-main {
+.glass-main-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+}
+.glass-content-column { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.glass-content-row { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; position: relative; }
+.glass-workspace--environment-open .glass-main-content {
     margin-right: 324px;
 }
 
@@ -1503,7 +1513,7 @@ body.is-resizing-terminal {
     /* Compact windows hide Environment by default. If the user explicitly
        reopens it, reserve a real lane for the 292px floating card so chat and
        composer recenter in the unobstructed area to its left. */
-    .glass-workspace--environment-open .glass-main {
+    .glass-workspace--environment-open .glass-main-content {
         margin-right: 316px;
     }
 
@@ -1771,13 +1781,25 @@ body.is-resizing-terminal {
 }
 
 /* Composer --------------------------------------------------------------- */
-.glass-composer {
+.glass-composer-wrap {
     flex: 0 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
     width: min(calc(100% - 28px), 760px);
     margin: 10px auto 12px;
+}
+.glass-composer-model {
+    text-align: right;
+    padding: 7px 12px 0;
+    font-size: 12px;
+    color: var(--text);
+}
+.glass-composer {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 8px;
+    width: 100%;
+    margin: 0;
     padding: 8px 12px;
     border: 1px solid transparent;
     border-radius: 18px;
@@ -1792,6 +1814,8 @@ body.is-resizing-terminal {
 /* Row 1: input on the left, status + cancel pills on the right.
    Row 2: add-file (left) + model/voice/send (right). */
 .glass-composer__top {
+    grid-column: 2;
+    grid-row: 1;
     display: flex;
     /* Pin the status + cancel pills to the BOTTOM of the row so they stay put
        as the textarea grows upward, instead of riding up with its top edge. */
@@ -1807,7 +1831,7 @@ body.is-resizing-terminal {
 }
 
 .glass-composer__bar {
-    display: flex;
+    display: contents;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
@@ -1815,6 +1839,8 @@ body.is-resizing-terminal {
 
 /* Left cluster of the composer bar: model picker + voice-engine switch. */
 .glass-composer__left {
+    grid-column: 1;
+    grid-row: 1;
     flex: 0 1 auto;
     min-width: 0;
     display: flex;
@@ -1871,7 +1897,7 @@ body.is-resizing-terminal {
     resize: none;
     min-height: 20px;
     /* ~4 lines, then scroll within (scrollbar hidden). */
-    max-height: 84px;
+    max-height: min(40vh, 320px);
     overflow-y: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -1960,6 +1986,8 @@ body.is-resizing-terminal {
 }
 
 .glass-composer__actions {
+    grid-column: 3;
+    grid-row: 1;
     flex: 0 0 auto;
     display: flex;
     align-items: center;
@@ -4146,6 +4174,22 @@ body.is-resizing-terminal {
 :root[data-theme='dark'] .project-workspace,
 :root[data-theme='dark'] .terminal-panel { background: #181818; }
 :root[data-theme='dark'] .glass-composer { background: #20201f; }
+:root[data-theme='dark'] .terminal-panel { background: #151515; border-top-color: #272727; }
+:root[data-theme='dark'] .terminal-panel__tab { background: #242424; color: var(--text); }
+:root[data-theme='dark'] .terminal-panel__tab strong,
+:root[data-theme='dark'] .terminal-panel__prompt span,
+:root[data-theme='dark'] .terminal-entry > div span { color: var(--text); }
+:root[data-theme='dark'] .terminal-panel__tabs button:hover { color: var(--text); background: #242424; }
+.glass-composer .glass-addfile { border: 0; background: transparent; }
+.glass-composer .glass-addfile svg { width: 16px; height: 16px; }
+.glass-composer--expanded .glass-composer__top { grid-column: 1 / -1; grid-row: 1; }
+.glass-composer--expanded .glass-composer__left { grid-row: 2; }
+.glass-composer--expanded .glass-composer__actions { grid-row: 2; }
+.workspace-theme { position: relative; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: var(--text-dim); -webkit-app-region: no-drag; }
+.workspace-theme:hover { background: var(--bg-subtle); }
+.workspace-theme svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.workspace-theme:focus-within { outline: 1px solid var(--text-dim); }
+.glass-composer-wrap > .local-ai-setup { margin-bottom: 8px; }
 :root[data-theme='dark'] .glass-account-menu { background: #20201f; }
 :root[data-theme='dark'] .glass-account__button.is-open,
 :root[data-theme='dark'] .glass-account__button.is-open:hover:not(:disabled) { background: transparent; }
@@ -4171,3 +4215,21 @@ body.is-resizing-terminal {
 .desktop-appearance select { padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--field-bg); }
 .local-ai-setup { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:11px; line-height:1.5; color:var(--text-dim); }
 .local-ai-setup button { flex-shrink:0; border:0; border-radius:6px; padding:4px 7px; color:var(--text); background:var(--bg-subtle); cursor:pointer; }
+
+/* Light appearance only; leave the custom dark palette unchanged. */
+:root[data-theme='light'] .glass-main,
+:root[data-theme='light'] .glass-conversation { background: #ffffff; }
+:root[data-theme='light'] .glass-nav,
+:root[data-theme='light'] .glass-app:not(.glass-app--navhidden) .workspace-bar__left { background: #fcfcfc; }
+:root[data-theme='light'] .glass-app:not(.glass-app--navhidden) .workspace-bar {
+    background: linear-gradient(to right, #fcfcfc 0 var(--chat-nav-width, 296px), #ffffff var(--chat-nav-width, 296px));
+}
+:root[data-theme='light'] .glass-composer,
+:root[data-theme='light'] .glass-composer:focus-within {
+    border: 1px solid #f0f0f0;
+    box-shadow: 0 2px 12px rgb(0 0 0 / 4%);
+}
+:root[data-theme='light'] .glass-voicepill__mic { border: 0; }
+:root[data-theme='light'] .glass-voicepill__mic svg { width: 16px; height: 16px; }
+:root[data-theme='light'] .glass-nav-resizer { width: 0.5px; background: #eaeaea; }
+:root[data-theme='light'] .glass-nav__footer { border-top: 0.5px solid #eaeaea; box-shadow: none; }

@@ -23,7 +23,6 @@ import {
 } from './operator'
 import { renderPdfToImages } from './pdf'
 import { routeIntent, isWorkspaceTask } from './intentRouter'
-import { VoiceBars } from '../voice-lib'
 import { useSmoothDictation as useDictation } from '../voice-lib-v2'
 import {
     addUserMessage,
@@ -41,7 +40,6 @@ import {
     ChevronIcon,
     ImageFileIcon,
     MailIcon,
-    PaperclipIcon,
     SendIcon,
     StopIcon,
     VideoCameraIcon
@@ -96,6 +94,7 @@ const ENVIRONMENT_COMPACT_BREAKPOINT = 1050
 export function App(): React.JSX.Element {
     const [state, setState] = useState<ConversationState>(() => initialConversationState())
     const [draft, setDraft] = useState('')
+    const [composerExpanded, setComposerExpanded] = useState(false)
     const [showSettings, setShowSettings] = useState(false)
     const [accessDialogOpen, setAccessDialogOpen] = useState(false)
     const checkingAccess = useRef(false)
@@ -525,17 +524,36 @@ export function App(): React.JSX.Element {
     }, [state.turns])
 
     // Keep draftRef in sync (read synchronously by dictation), auto-grow the
-    // input up to ~4 lines, then scroll to keep the latest line visible. Runs
+    // input up to the CSS height limit, then scroll to the latest line. Runs
     // as a layout effect so the textarea is sized before paint — switching back
     // from the dictation transcript doesn't flash a collapsed height.
     useLayoutEffect(() => {
         draftRef.current = draft
         const el = inputRef.current
         if (!el) return
-        el.style.height = 'auto'
-        el.style.height = `${el.scrollHeight}px`
-        el.scrollTop = el.scrollHeight
-    }, [draft])
+        const resize = (): void => {
+            const composer = el.closest('.glass-composer')
+            const probe = el.cloneNode() as HTMLTextAreaElement
+            probe.removeAttribute('id')
+            probe.value = el.value
+            probe.style.cssText = `position:fixed;visibility:hidden;pointer-events:none;height:0;min-height:0;max-height:none;width:${Math.max(80, (composer?.clientWidth ?? el.clientWidth) - 112)}px`
+            document.body.appendChild(probe)
+            setComposerExpanded(probe.scrollHeight > 36)
+            probe.remove()
+            el.style.height = 'auto'
+            el.style.height = `${el.scrollHeight}px`
+            el.scrollTop = el.scrollHeight
+        }
+        resize()
+        let width = el.clientWidth
+        const observer = new ResizeObserver(() => {
+            if (el.clientWidth === width) return
+            width = el.clientWidth
+            resize()
+        })
+        observer.observe(el)
+        return () => observer.disconnect()
+    }, [draft, showSettings])
 
     // Auto-collapse the sidebar when the window narrows past the mobile
     // breakpoint, and re-open it when it widens again (only on crossing, so a
@@ -1609,7 +1627,10 @@ export function App(): React.JSX.Element {
                     />
                 )}
 
+                <div className="glass-content-column">
+                <div className="glass-content-row">
                 <div className="glass-main">
+                  <div className="glass-main-content">
                     {!showSettings && (
                         <ConversationMinimap
                             turns={conv.turns}
@@ -1914,8 +1935,9 @@ export function App(): React.JSX.Element {
                         </div>
                     )}
                     {!showSettings && (
-                        <div className="glass-composer">
+                        <div className="glass-composer-wrap">
                             <LocalAISetup />
+                        <div className={`glass-composer${composerExpanded ? ' glass-composer--expanded' : ''}`}>
                             <div className="glass-composer__top">
                                 <div className="glass-composer__text">
                                     <textarea
@@ -1934,7 +1956,7 @@ export function App(): React.JSX.Element {
                                         readOnly={dictation.listening || !signedIn}
                                         disabled={!signedIn}
                                         rows={1}
-                                        aria-label="Message Smart Copilot"
+                                        aria-label="Message Codex Lite"
                                     />
                                 </div>
                                 {operatorEngaged && (
@@ -2054,7 +2076,7 @@ export function App(): React.JSX.Element {
                                             aria-label="Attach from camera or files"
                                             title="Attach — camera or files"
                                         >
-                                            <PaperclipIcon />
+                                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M12 4v16M4 12h16" /></svg>
                                         </button>
                                     </div>
                                     <input
@@ -2070,9 +2092,6 @@ export function App(): React.JSX.Element {
                                     />
                                 </div>
                                 <div className="glass-composer__actions">
-                                    <span className="glass-model" title="Server-managed free models. Availability depends on shared provider quotas.">
-                                        Qwen Coder · Local
-                                    </span>
                                     {dictation.supported && (
                                         <button
                                             type="button"
@@ -2089,7 +2108,7 @@ export function App(): React.JSX.Element {
                                                         : 'Dictate: speak instead of typing'
                                             }
                                         >
-                                            <VoiceBars active={dictation.listening} />
+                                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="3" width="6" height="12" rx="3" /><path d="M6 10v2a6 6 0 0 0 12 0v-2M12 18v3M9 21h6" /></svg>
                                         </button>
                                     )}
                                     {projectRunning && <button type="button" className="glass-send" aria-label="Stop workspace task" title="Stop workspace task (⌘⇧Esc)" onClick={() => void window.workspace.stop()}><StopIcon /></button>}
@@ -2108,13 +2127,10 @@ export function App(): React.JSX.Element {
                                 </div>
                             </div>
                         </div>
+                        <div className="glass-composer-model" title="Qwen Coder runs locally on this computer">Qwen Coder · Local</div>
+                        </div>
                     )}
-                    {terminalOpen && (
-                        <TerminalPanel
-                            title={currentItem?.title ?? 'Task terminal'}
-                            onClose={() => setTerminalOpen(false)}
-                        />
-                    )}
+                  </div>
                 </div>
                 <ProjectWorkspace
                         tabHost={projectTabHost}
@@ -2147,6 +2163,11 @@ export function App(): React.JSX.Element {
                         />
                     </aside>
                 )}
+                </div>
+                {terminalOpen && (
+                    <TerminalPanel title={currentItem?.title ?? 'Task terminal'} onClose={() => setTerminalOpen(false)} />
+                )}
+                </div>
                 </div>
                     {navOpen && (
                         <div
