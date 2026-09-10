@@ -1,7 +1,7 @@
 # Merge notes: how the operator engine was folded in
 
 The operator engine started life as a separate Electron app. It was merged with
-the copilot engine to create Computer or Browser Use: one app, one UI, and one
+the copilot engine to create Codex Lite: one app, one UI, and one
 set of credentials. This document records how the two engines stay isolated.
 
 ## The goal
@@ -12,7 +12,7 @@ mode instead of bolting on a second application.
 ```
    BEFORE                              AFTER
    ------                              -----
-   copilot app   (advise)            Computer or Browser Use
+   copilot app   (advise)            Codex Lite
    operator app  (act)                 ├─ copilot mode  (advise)   default
                                       └─ operator mode (act)      toggle
 ```

@@ -48,7 +48,7 @@ Version numbers are the installed major families from `package.json`.
 The two app modes share provider concepts but produce different outputs.
 
 ```
-  Smart Copilot                      Computer or Browser Use
+  Smart Copilot                      Codex Lite
   -------------                      -----------------------
   image(s) + question                observation + bounded history
           │                                      │
@@ -108,7 +108,7 @@ The two app modes share provider concepts but produce different outputs.
 ## Why the split reasoning clients
 
 Smart Copilot answers a person ("what should I do next?") and returns prose.
-Computer or Browser Use answers the state machine ("what is the next typed
+Codex Lite answers the state machine ("what is the next typed
 outcome?") and must conform to a fixed action contract. Keeping those request
 shapes separate makes both simpler while allowing them to share compatible
 provider infrastructure.

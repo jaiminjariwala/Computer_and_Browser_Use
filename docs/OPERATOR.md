@@ -1,6 +1,6 @@
 # Operator engine
 
-"Computer or Browser Use" turns the app from an advisor into an actor. You give
+"Codex Lite" turns the app from an advisor into an actor. You give
 it a goal; it observes the selected environment, chooses one action, passes that
 action through a safety gate, executes it, and observes again.
 

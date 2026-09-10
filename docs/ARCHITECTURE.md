@@ -1,11 +1,11 @@
 # Architecture
 
-Technical overview of how Computer or Browser Use is built. For the friendly version see
+Technical overview of how Codex Lite is built. For the friendly version see
 [How it works](./HOW-IT-WORKS.md).
 
 ## Electron processes & windows
 
-Computer or Browser Use is an Electron app: one **main** process (full system access) and
+Codex Lite is an Electron app: one **main** process (full system access) and
 **renderer** windows (sandboxed UI) that talk to it only through a typed
 **preload bridge**.
 

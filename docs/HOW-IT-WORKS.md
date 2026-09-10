@@ -18,7 +18,7 @@ The app is one desktop assistant with two very different jobs:
 
 - **Smart Copilot** is a *navigator*: it looks at what's on your screen and
   tells you the next step. You keep your hands on the wheel.
-- **Computer or Browser Use** is a *chauffeur*: you name the destination
+- **Codex Lite** is a *chauffeur*: you name the destination
   ("open youtube and play a song") and it drives — a real browser, or your
   Mac — while you watch and can stop it at any moment.
 
