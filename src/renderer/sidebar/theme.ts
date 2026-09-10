@@ -2,13 +2,18 @@ export type AppTheme = 'light' | 'dark'
 const KEY = 'desktop-appearance'
 
 export function getTheme(): AppTheme {
-    return localStorage.getItem(KEY) === 'light' ? 'light' : 'dark'
+    const value = localStorage.getItem(KEY)
+    return value === 'light' ? 'light' : 'dark'
+}
+
+function applyTheme(): void {
+    document.documentElement.dataset.theme = getTheme()
 }
 
 export function setTheme(theme: AppTheme): void {
     localStorage.setItem(KEY, theme)
-    document.documentElement.dataset.theme = theme
+    applyTheme()
     window.dispatchEvent(new Event('desktop-theme-change'))
 }
 
-document.documentElement.dataset.theme = getTheme()
+applyTheme()

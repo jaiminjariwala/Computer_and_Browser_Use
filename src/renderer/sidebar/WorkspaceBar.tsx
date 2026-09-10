@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { WorkspaceIcon } from './WorkspaceIcon'
+import { getTheme, setTheme } from './theme'
 
 function PanelIcon({ side }: { side: 'left' | 'right' | 'bottom' }): React.JSX.Element {
     return (
@@ -31,6 +32,12 @@ export function WorkspaceBar({
     projectWidth?: number
     tabHostRef?: (node: HTMLDivElement | null) => void
 }): React.JSX.Element {
+    const [appearance, setAppearance] = useState(getTheme)
+    useEffect(() => {
+        const update = (): void => setAppearance(getTheme())
+        window.addEventListener('desktop-theme-change', update)
+        return () => window.removeEventListener('desktop-theme-change', update)
+    }, [])
     return (
         <header className="workspace-bar">
             <div className="workspace-bar__left">
@@ -41,6 +48,11 @@ export function WorkspaceBar({
             <div className={`workspace-bar__right${projectWidth !== undefined ? ' workspace-bar__right--project' : ''}`} style={projectWidth !== undefined ? {width:projectWidth,maxWidth:'calc(100vw - 300px)'} : undefined}>
             <div className="workspace-bar__tab-host" ref={tabHostRef} />
             <div className="workspace-bar__actions">
+                <button type="button" className="workspace-theme" title={appearance === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} aria-label={appearance === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={() => setTheme(appearance === 'dark' ? 'light' : 'dark')}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" strokeLinecap="round" strokeLinejoin="round">
+                        {appearance === 'dark' ? <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5" /></> : <path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z" />}
+                    </svg>
+                </button>
                 <button type="button" onClick={onOpenFiles} aria-label="Open project files" title="Open project files (⌘P)"><WorkspaceIcon name="files" /></button>
                 <button type="button" className={terminalOpen ? 'is-active' : ''} onClick={onToggleTerminal} aria-label="Toggle bottom terminal" title="Toggle bottom terminal (⌘J)">
                     <PanelIcon side="bottom" />

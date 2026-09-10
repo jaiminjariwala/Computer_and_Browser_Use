@@ -59,6 +59,11 @@ const storedDot = <span style={{ color: '#19c37d' }}>●</span>
 
 export function Settings({ onConfigStatusChange: _onConfigStatusChange, onBack }: { onConfigStatusChange?: (status: ConfigStatus) => void; onBack?: () => void } = {}): React.JSX.Element {
     const [appearance, setAppearance] = useState<AppTheme>(getTheme)
+    useEffect(() => {
+        const update = (): void => setAppearance(getTheme())
+        window.addEventListener('desktop-theme-change', update)
+        return () => window.removeEventListener('desktop-theme-change', update)
+    }, [])
     return <section aria-label="AI settings" className="glass-settings">
         {onBack && <button type="button" className="settings-back" onClick={onBack}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14" /></svg>
