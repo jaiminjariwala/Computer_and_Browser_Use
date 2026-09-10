@@ -1,4 +1,4 @@
-# Computer or Browser Use backend
+# Codex Lite backend
 
 This Go service is the production trust boundary for managed AI and Plus billing. Provider and Stripe secrets live here, never inside the Electron app. Users authenticate with GitHub once and receive an app session; they do not paste Gemini, OpenRouter, OpenAI, or Stripe keys.
 
@@ -6,7 +6,7 @@ This Go service is the production trust boundary for managed AI and Plus billing
 
 - `POST /v1/auth/github` verifies an existing GitHub OAuth access token and returns a 30-day app session.
 - `GET /v1/me` and `GET /v1/usage` return account, plan, and monthly allowance state.
-- `POST /v1/chat` routes managed requests through Gemini, then OpenRouter, then OpenAI/Codex when configured. The response reports the provider and model actually used.
+- `POST /v1/chat` requires active desktop access and routes through Gemini, then OpenRouter free models. There is no paid OpenAI fallback.
 - `POST /v1/billing/checkout` creates a Stripe-hosted Plus subscription checkout.
 - `POST /v1/billing/portal` creates a Stripe customer-portal session.
 - `POST /v1/webhooks/stripe` verifies Stripe signatures, handles duplicate deliveries, and activates or removes Plus access.
@@ -45,7 +45,7 @@ GOCACHE=/tmp/cbu-go-build-cache go vet ./...
 
 ## Stripe test-mode setup
 
-1. Create one recurring monthly product named **Computer or Browser Use Plus** priced at **$24.99 USD**.
+1. Create a recurring monthly product named **Codex Lite** priced at **$1 USD** and configure its new price ID. Existing subscriptions are not migrated automatically.
 2. Put the resulting `price_...` identifier in `STRIPE_PLUS_PRICE_ID` and your test secret in `STRIPE_SECRET_KEY`.
 3. Register `POST /v1/webhooks/stripe` as a webhook endpoint and subscribe it to:
    - `checkout.session.completed`

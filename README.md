@@ -1,17 +1,18 @@
-# Computer or Browser Use
+# Codex Lite
 
-**A context-aware AI workspace for macOS.**
+**An independent chat and code workspace for macOS — $1/month desktop access.**
 
-Computer or Browser Use brings your conversations, screen, files, videos, and
+Codex Lite brings your conversations, screen, files, videos, and
 email into one place. Ask for help, share what you are looking at, or hand off a
 task when you want it done for you.
 
-Smart Copilot is one feature inside Computer or Browser Use: it looks at the
-context you share and gives you the next useful step. Computer or Browser Use
-can also remember useful context, work with documents and media, run browser or
-Mac tasks, and repeat saved workflows.
+Ask coding questions and view generated code in the right-side workspace.
+GitHub sign-in and Stripe Checkout handle access. Publisher-managed Gemini and
+OpenRouter free models power answers; customers do not paste API keys. Shared
+free quotas can run out, including for paying customers. This is not an OpenAI
+product and does not include a Codex or ChatGPT subscription.
 
-## What Computer or Browser Use can do
+## What Codex Lite can do
 
 - **Chat with context** — keep conversations and history together instead of
   starting from scratch every time.
@@ -22,16 +23,17 @@ Mac tasks, and repeat saved workflows.
 - **Take voice input locally** — dictate with on-device Whisper.
 - **Remember useful details** — review, add, or clear saved memory from
   Settings.
-- **Handle a task** — ask Computer or Browser Use to work in a Playwright
-  browser or on your Mac and follow its progress in the chat.
+- **Experimental automation** — retained browser and Mac tools can attempt basic
+  tasks. Even short tasks may require multiple calls; completion is not guaranteed.
+  Long tasks such as creating Blender scenes are outside the paid offer.
 - **Repeat routine work** — save a task as a playbook, run it again with one
   click, or schedule it daily while the app is open.
-- **Use your own AI** — connect Gemini, OpenRouter, or another
-  OpenAI-compatible provider.
+- **Managed AI** — Gemini and OpenRouter free-model routing, with shared quotas
+  and a separate capped app allowance.
 
 ## How it fits together
 
-| What you do | What Computer or Browser Use does |
+| What you do | What Codex Lite does |
 | --- | --- |
 | Ask a question | Answers in the conversation. |
 | Share a screen capture, file, video, or email | Uses it as context for the answer. |
@@ -54,14 +56,13 @@ The app is not notarized yet. On first launch, right-click it, choose **Open**,
 then confirm once more. If macOS still blocks it:
 
 ```bash
-xattr -cr "/Applications/Computer or Browser Use.app"
+xattr -cr "/Applications/Codex Lite.app"
 ```
 
-Every user signs in with GitHub before starting a chat. Zero-cost deterministic
-requests run locally; model-backed requests are designed to go through the
-product's managed AI gateway, where free allowances, paid usage, routing, and
-provider credentials are enforced server-side. Publisher API keys must never be
-bundled in the Electron app.
+Every user signs in with GitHub and activates $1/month desktop access before
+starting a chat. The Go backend enforces access and usage limits. Publisher API
+keys must never be bundled in Electron. Downloads require a configured public
+backend; localhost development settings do not work on another user's computer.
 
 The current local development build still supports encrypted provider keys in
 Settings as a developer override. That is not the production onboarding flow,
@@ -70,8 +71,8 @@ and the chat no longer asks end users to paste provider secrets inline. See
 
 ## Getting started
 
-1. Open Computer or Browser Use and sign in with GitHub.
-2. Type a question, or share something from the attachment menu.
+1. Open Codex Lite and sign in with GitHub.
+2. Type a question and subscribe through the access dialog; then submit again.
 3. To ask about your screen, use one of the capture shortcuts below.
 4. To hand off a task, describe the outcome you want. Review the environment,
    approval mode, and step budget before it starts.
@@ -80,7 +81,7 @@ and the chat no longer asks end users to paste provider secrets inline. See
 
 | Shortcut | Action |
 | --- | --- |
-| **Cmd+Shift+Space** | Show or hide Computer or Browser Use |
+| **Cmd+Shift+Space** | Show or hide Codex Lite |
 | **Cmd+Shift+D** | Capture a region |
 | **Cmd+Shift+F** | Capture a window |
 | **Cmd+Shift+S** | Capture the full screen |
@@ -95,8 +96,8 @@ need **Screen Recording** and **Accessibility**. Voice input needs
 - Chats, memories, playbooks, and settings are stored on your Mac.
 - The messages and selected context you send are passed to the AI provider you
   configure.
-- Screen capture only starts when you use a Computer or Browser Use shortcut.
-- Raw video stays on your Mac. Computer or Browser Use sends a bounded set of
+- Screen capture only starts when you use a Codex Lite shortcut.
+- Raw video stays on your Mac. Codex Lite sends a bounded set of
   sampled frames to the provider instead.
 - Task runs have an activity trail, an approval mode, a step budget, and a
   global stop shortcut.
@@ -147,7 +148,7 @@ environment file.
 ## Documentation
 
 - [Setup](./docs/SETUP.md)
-- [How Computer or Browser Use works](./docs/HOW-IT-WORKS.md)
+- [How Codex Lite works](./docs/HOW-IT-WORKS.md)
 - [Safety model](./docs/SAFETY.md)
 - [Architecture](./docs/ARCHITECTURE.md)
 - [Development and packaging](./docs/DEVELOPMENT.md)
@@ -155,7 +156,7 @@ environment file.
 
 ## Status
 
-Computer or Browser Use is a personal R&D project. It is currently macOS-only
+Codex Lite is a personal R&D project. It is currently macOS-only
 and ships as an unsigned build. Deterministic routes work locally; model-backed
 chat and reasoning require a provider you connect. Browser and Mac task
 execution should be treated as experimental.
