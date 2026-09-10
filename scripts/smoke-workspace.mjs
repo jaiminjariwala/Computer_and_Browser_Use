@@ -12,9 +12,12 @@ const fixture = `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { ProjectWorkspace } from '/src/renderer/sidebar/ProjectWorkspace';
+import { PlusUpgradeModal } from '/src/renderer/sidebar/PlusUpgradeModal';
 import '/src/renderer/sidebar/styles.css';
 const files = {'src/main.ts': {path:'src/main.ts', content:'export const rocket = "Ready for launch";\\n', revision:'1'}, 'README.md': {path:'README.md', content:'# Rocket workspace', revision:'1'}};
 let listener = () => {};
+window.glass = {startPlusCheckout:async()=>{throw new Error('Sandbox checkout unavailable')}};
+window.showAccess=()=>{const host=document.createElement('div');document.body.append(host);const root=createRoot(host);root.render(<PlusUpgradeModal onClose={()=>root.unmount()}/>)};
 window.workspace = {
  root: async () => ({path:'/fixture/Rocket',name:'Rocket'}),
  choose: async () => null,
@@ -97,6 +100,14 @@ try {
     await page.evaluate(() => window.emitActivity({running:true,message:'Creating rocket scene'}))
     await page.getByRole('button',{name:'Stop',exact:true}).click()
     assert.equal(await page.evaluate(() => window.stopped),true)
+    await page.evaluate(() => window.showAccess())
+    await page.getByRole('dialog').waitFor()
+    await page.getByRole('button',{name:'Subscribe for $1/month',exact:true}).click()
+    await page.getByRole('alert').filter({hasText:'Sandbox checkout unavailable'}).waitFor()
+    assert.equal(await page.getByRole('button',{name:'Subscribe for $1/month',exact:true}).isEnabled(),true)
+    await page.screenshot({path:resolve(tmpdir(),'desktop-access-smoke.png')})
+    await page.keyboard.press('Escape')
+    assert.equal(await page.getByRole('dialog').count(),0)
     assert.deepEqual(errors,[])
     console.log(`Workspace smoke passed: tree, editor, save, terminal tab, embedded browser controls, Stop. Screenshot: ${screenshot}`)
 } finally {
