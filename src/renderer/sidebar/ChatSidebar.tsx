@@ -68,14 +68,6 @@ function LogoutIcon(): React.JSX.Element {
     )
 }
 
-function MenuChevron({ open }: { open: boolean }): React.JSX.Element {
-    return (
-        <svg className={open ? 'is-open' : ''} viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="m7 5 5 5-5 5" />
-        </svg>
-    )
-}
-
 /** Fast type/delete cycle for the active running row; static under reduced motion. */
 function useTypewriter(text: string, animate: boolean): string {
     const [visible, setVisible] = useState(text)
@@ -172,7 +164,6 @@ export function ChatSidebar({
     const [authBusy, setAuthBusy] = useState(false)
     const [copied, setCopied] = useState(false)
     const [accountMenuOpen, setAccountMenuOpen] = useState(false)
-    const [usageOpen, setUsageOpen] = useState(false)
     const [upgradeOpen, setUpgradeOpen] = useState(false)
     const [managedStatus, setManagedStatus] = useState<ManagedAccountStatus | null>(null)
     const accountMenuRef = useRef<HTMLDivElement>(null)
@@ -384,37 +375,15 @@ export function ChatSidebar({
                         <button
                             type="button"
                             className="glass-account-menu__item glass-account-menu__usage"
-                            onClick={() => setUsageOpen((open) => !open)}
-                            aria-expanded={usageOpen}
+                            onClick={() => {
+                                setAccountMenuOpen(false)
+                                if (isPlus) void window.glass.openBillingPortal()
+                                else setUpgradeOpen(true)
+                            }}
                         >
                             <span className="glass-account-menu__icon"><UsageIcon /></span>
-                            <span>Desktop access</span>
-                            <MenuChevron open={usageOpen} />
+                            <span>{isPlus ? 'Manage subscription' : 'Upgrade'}</span>
                         </button>
-                        {usageOpen && (
-                            <div className="glass-account-menu__usage-details">
-                                <div className="glass-account-menu__local-status">
-                                    <span className={`glass-account-menu__status-dot${isPlus ? ' is-active' : ''}`}
-                                        role="img" aria-label={isPlus ? 'Desktop access active' : 'Desktop access inactive'}
-                                        title={isPlus ? 'Desktop access active' : 'Desktop access inactive'} />
-                                    <span>AI runs locally</span>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="glass-account-menu__upgrade"
-                                    onClick={() => {
-                                        setAccountMenuOpen(false)
-                                        if (isPlus) {
-                                            void window.glass.openBillingPortal()
-                                        } else {
-                                            setUpgradeOpen(true)
-                                        }
-                                    }}
-                                >
-                                    {isPlus ? 'Manage subscription' : 'Get desktop access · $1/month'}
-                                </button>
-                            </div>
-                        )}
                         <button
                             type="button"
                             className={`glass-account-menu__item${settingsOpen ? ' is-selected' : ''}`}
