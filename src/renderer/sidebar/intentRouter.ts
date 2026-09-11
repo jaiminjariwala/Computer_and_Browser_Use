@@ -47,6 +47,7 @@ const LOCAL_SIGNALS =
  */
 export function routeIntent(text: string, hasImages: boolean): RoutedIntent {
     const t = text.trim().toLowerCase()
+    if (/\bsearch\b.*\b(internet|web|online|for)\b|\blook up\b/.test(t)) return { mode: 'copilot' }
     if (t.length === 0) return { mode: 'copilot' }
     if (isCodeQuestion(t)) return { mode: 'copilot' }
 
@@ -58,7 +59,8 @@ export function routeIntent(text: string, hasImages: boolean): RoutedIntent {
     if (QUESTION_STARTS.test(t)) return { mode: 'copilot' }
 
     // A clear imperative command → operator. Pick the environment from signals.
-    if (ACTION_VERBS.test(t)) {
+    const command = t.replace(/^(?:please|hey|okay|ok)[,\s]+/, '')
+    if (command.search(ACTION_VERBS) === 0) {
         return { mode: 'operator', environment: pickEnvironment(t) }
     }
 
