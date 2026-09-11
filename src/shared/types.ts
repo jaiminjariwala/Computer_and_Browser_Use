@@ -329,6 +329,7 @@ export interface GlassBridge {
     // Sidebar -> main
     /** Send a typed chat message (Req 2.2, 3.1). */
     sendMessage(text: string): Promise<void>
+    onSearchStatus(cb: (searching: boolean) => void): () => void
     /** Persist a user task that is executed by the computer/browser engine. */
     recordTaskMessage(text: string): Promise<void>
     /**
@@ -379,6 +380,7 @@ export interface GlassBridge {
     /** Load plan and usage from the publisher-managed backend. */
     getManagedAccountStatus(): Promise<ManagedAccountStatus>
     localAI(action: 'status' | 'prepare' | 'start' | 'pause'): Promise<import('./local-ai').LocalAIStatus>
+    dockPreferences(input?: import('./dock-icon').DockPreferences): Promise<import('./dock-icon').DockPreferences & { previews: Record<import('./dock-icon').DockIcon, string> }>
     /** Open Stripe-hosted Plus Checkout in the default browser. */
     startPlusCheckout(): Promise<void>
     /** Open Stripe's customer portal for an existing subscriber. */

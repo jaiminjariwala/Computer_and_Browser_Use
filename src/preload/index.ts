@@ -51,6 +51,11 @@ const bridge: GlassBridge = {
 
     // Sidebar -> main
     sendMessage: (text: string): Promise<void> => ipcRenderer.invoke('chat:send', { text }),
+    onSearchStatus: (cb) => {
+        const listener = (_event: Electron.IpcRendererEvent, searching: boolean): void => cb(searching)
+        ipcRenderer.on('search:status', listener)
+        return () => { ipcRenderer.removeListener('search:status', listener) }
+    },
     recordTaskMessage: (text: string): Promise<void> =>
         ipcRenderer.invoke('chat:record-task', { text }),
     sendCaptures: (captures: TurnCapture[], text?: string): Promise<void> =>
@@ -82,6 +87,7 @@ const bridge: GlassBridge = {
         ipcRenderer.invoke('github-auth:start'),
     logoutGitHub: (): Promise<void> => ipcRenderer.invoke('github-auth:logout'),
     localAI: (action: 'status' | 'prepare' | 'start' | 'pause') => ipcRenderer.invoke(`local-ai:${action}`),
+    dockPreferences: (input) => ipcRenderer.invoke('dock:preferences', input),
     getManagedAccountStatus: (): Promise<ManagedAccountStatus> =>
         ipcRenderer.invoke('managed:status'),
     startPlusCheckout: (): Promise<void> => ipcRenderer.invoke('managed:checkout'),

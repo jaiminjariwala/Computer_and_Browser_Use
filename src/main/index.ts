@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, globalShortcut, session, nativeImage, desktopCapturer, systemPreferences } from 'electron'
 import { join } from 'path'
+import { registerDockSettings } from './dock-settings'
 import { randomUUID } from 'crypto'
 import { execFile } from 'child_process'
 import { tmpdir } from 'os'
@@ -268,6 +269,7 @@ function createWindow(): void {
     }
 }
 
+let stopDockAnimation: (() => void) | undefined
 app.whenReady().then(async () => {
     // A second instance never sets anything up; it already asked the primary to
     // focus (see 'second-instance' above) and is quitting.
@@ -285,6 +287,8 @@ app.whenReady().then(async () => {
             // Non-fatal: a missing/unloadable dev icon just leaves the default.
         }
     }
+
+    stopDockAnimation = registerDockSettings(() => mainWindow)
 
     // Allow camera/microphone and clipboard WRITES only for the trusted
     // sidebar renderer. Dictation requests audio; the local video recorder
@@ -890,6 +894,7 @@ app.on('window-all-closed', () => {
 
 // Release the Global_Hotkey on quit so the OS-level binding is cleared.
 app.on('will-quit', () => {
+    stopDockAnimation?.()
     hotkeyManager?.unregister()
     trayManager?.destroy()
     windowManager?.stopPencilFollow()

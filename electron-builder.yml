@@ -32,6 +32,9 @@ files:
 asarUnpack:
   - node_modules/playwright/**
   - node_modules/playwright-core/**
+extraResources:
+  - from: build/dock-icons
+    to: dock-icons
 
 # macOS configuration.
 mac:
