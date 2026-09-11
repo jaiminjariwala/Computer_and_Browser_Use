@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { LocalAISetup } from './LocalAISetup'
+import { RollingBall } from './RollingBall'
 import type { ConfigStatus, GitHubAuthStatus, GlassError, SessionListItem, SessionSummary, SessionView, TurnCapture, TurnView, WorkspaceContext } from '@shared/types'
 import type { ConfirmationRequest, LoopStateView, Playbook } from '@op-shared/types'
 import type { SelectedEmail } from '@shared/types'
@@ -44,7 +45,7 @@ import {
     StopIcon,
     VideoCameraIcon
 } from './icons'
-import { GoalTracker, TurnBody } from './turns'
+import { TurnBody } from './turns'
 import {
     finderName,
     formatEmailContext,
@@ -253,6 +254,9 @@ export function App(): React.JSX.Element {
     // flight at once — a new question never supersedes an earlier one — and
     // each row offers Cancel for exactly that question.
     const [thinkingIds, setThinkingIds] = useState<readonly string[]>([])
+    const [searching, setSearching] = useState(false)
+    useEffect(() => window.glass.onSearchStatus?.(setSearching), [])
+    const [freshAnswers, setFreshAnswers] = useState<readonly string[]>([])
     const cancelThinking = useCallback((requestId: string) => {
         // Optimistically clear the row; main confirms via request:settled.
         setThinkingIds((prev) => prev.filter((id) => id !== requestId))
@@ -367,7 +371,10 @@ export function App(): React.JSX.Element {
         }
 
         const unsubscribers: Array<void | (() => void)> = [
-            bridge.onTurnAppended((turn) => setState((s) => appendTurn(s, turn))),
+            bridge.onTurnAppended((turn) => {
+                if (turn.role === 'assistant' && turn.status !== 'error') setFreshAnswers(ids => [...ids.slice(-20), turn.id])
+                setState((s) => appendTurn(s, turn))
+            }),
             bridge.onPending((pending) => setState((s) => setPending(s, pending))),
             bridge.onError((err) => setState((s) => setError(s, err))),
             bridge.onSessionState?.((session) => {
@@ -1650,7 +1657,6 @@ export function App(): React.JSX.Element {
                         </div>
                     ) : (
                         <div className="glass-conversation" ref={conversationRef} aria-live="polite">
-                            {!operatorMode && summary && <GoalTracker summary={summary} />}
                             {operatorMode &&
                                 conv.turns.length === 0 &&
                                 opSteps.length === 0 &&
@@ -1772,7 +1778,7 @@ export function App(): React.JSX.Element {
                                                     alt="Captured screen region"
                                                 />
                                             )}
-                                            {turn.text && <TurnBody turn={turn} />}
+                                            {turn.text && <TurnBody turn={turn} animate={freshAnswers.includes(turn.id)} />}
                                         </div>
                                     </div>
                                     {/* This question is still thinking: its own
@@ -1780,9 +1786,7 @@ export function App(): React.JSX.Element {
                                     {!operatorMode && turn.role === 'user' && thinkingIds.includes(turn.id) && (
                                         <div className="glass-row glass-row--assistant">
                                             <div className="glass-pending glass-pending--perquestion" role="status" aria-label="Thinking about this question">
-                                                <span className="glass-pending__dot" />
-                                                <span className="glass-pending__dot" />
-                                                <span className="glass-pending__dot" />
+                                                <RollingBall />{searching && <span role="status">Searching…</span>}
                                                 <button
                                                     type="button"
                                                     className="glass-pending__cancel"
@@ -1817,9 +1821,7 @@ export function App(): React.JSX.Element {
                                 ) && (
                                     <div className="glass-row glass-row--assistant">
                                         <div className="glass-pending" role="status" aria-label="Glass is thinking">
-                                            <span className="glass-pending__dot" />
-                                            <span className="glass-pending__dot" />
-                                            <span className="glass-pending__dot" />
+                                            <RollingBall />{searching && <span role="status">Searching…</span>}
                                         </div>
                                     </div>
                                 )}
@@ -2009,7 +2011,6 @@ export function App(): React.JSX.Element {
                                                         <span className="glass-model-item__check"><VideoCameraIcon /></span>
                                                         <span className="glass-model-item__text">
                                                             <span className="glass-model-item__name">Camera</span>
-                                                            <span className="glass-model-item__sub">Record a video with this device</span>
                                                         </span>
                                                     </button>
                                                     <button
@@ -2023,8 +2024,7 @@ export function App(): React.JSX.Element {
                                                     >
                                                         <span className="glass-model-item__check"><ImageFileIcon /></span>
                                                         <span className="glass-model-item__text">
-                                                            <span className="glass-model-item__name">Files</span>
-                                                            <span className="glass-model-item__sub">Images, PDFs, or videos</span>
+                                                            <span className="glass-model-item__name">Add files or photos</span>
                                                         </span>
                                                     </button>
                                                     {!operatorMode && (
@@ -2041,8 +2041,7 @@ export function App(): React.JSX.Element {
                                                             >
                                                                 <span className="glass-model-item__check"><MailIcon /></span>
                                                                 <span className="glass-model-item__text">
-                                                                    <span className="glass-model-item__name">Email — Apple Mail</span>
-                                                                    <span className="glass-model-item__sub">The message selected in Mail</span>
+                                                                    <span className="glass-model-item__name">Apple Mail</span>
                                                                 </span>
                                                             </button>
                                                             <button
@@ -2057,8 +2056,7 @@ export function App(): React.JSX.Element {
                                                             >
                                                                 <span className="glass-model-item__check"><MailIcon /></span>
                                                                 <span className="glass-model-item__text">
-                                                                    <span className="glass-model-item__name">Email — Outlook</span>
-                                                                    <span className="glass-model-item__sub">The message selected in Outlook</span>
+                                                                    <span className="glass-model-item__name">Outlook</span>
                                                                 </span>
                                                             </button>
                                                         </>

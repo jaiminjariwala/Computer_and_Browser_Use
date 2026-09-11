@@ -267,7 +267,8 @@ body.is-resizing-nav {
 }
 
 .glass-nav__brand {
-    font-size: 13.5px;
+    font-size: 16px;
+    -webkit-text-stroke: .22px currentColor;
     font-weight: 650;
     color: var(--text);
 }
@@ -4181,14 +4182,15 @@ body.is-resizing-terminal {
 :root[data-theme='dark'] .terminal-entry > div span { color: var(--text); }
 :root[data-theme='dark'] .terminal-panel__tabs button:hover { color: var(--text); background: #242424; }
 .glass-composer .glass-addfile { border: 0; background: transparent; }
-.glass-composer .glass-addfile svg { width: 16px; height: 16px; }
+.glass-composer .glass-addfile svg { width: 19px; height: 19px; }
 .glass-composer--expanded .glass-composer__top { grid-column: 1 / -1; grid-row: 1; }
 .glass-composer--expanded .glass-composer__left { grid-row: 2; }
 .glass-composer--expanded .glass-composer__actions { grid-row: 2; }
 .workspace-theme { position: relative; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: var(--text-dim); -webkit-app-region: no-drag; }
 .workspace-theme:hover { background: var(--bg-subtle); }
 .workspace-theme svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; }
-.workspace-theme:focus-within { outline: 1px solid var(--text-dim); }
+.workspace-bar button.workspace-theme { border: 0; outline: none; box-shadow: none; }
+.workspace-bar button.workspace-theme:focus-visible { background: var(--bg-subtle); }
 .glass-composer-wrap > .local-ai-setup { margin-bottom: 8px; }
 :root[data-theme='dark'] .glass-account-menu { background: #20201f; }
 :root[data-theme='dark'] .glass-account__button.is-open,
@@ -4230,6 +4232,37 @@ body.is-resizing-terminal {
     box-shadow: 0 2px 12px rgb(0 0 0 / 4%);
 }
 :root[data-theme='light'] .glass-voicepill__mic { border: 0; }
-:root[data-theme='light'] .glass-voicepill__mic svg { width: 16px; height: 16px; }
+.glass-composer .glass-voicepill__mic svg { width: 19px; height: 19px; }
 :root[data-theme='light'] .glass-nav-resizer { width: 0.5px; background: #eaeaea; }
 :root[data-theme='light'] .glass-nav__footer { border-top: 0.5px solid #eaeaea; box-shadow: none; }
+.glass-recorder--minimal { padding: 0; border: 0; background: transparent; box-shadow: none; }
+.glass-recorder--minimal .glass-recorder__preview { margin: 0; border: 0; box-shadow: none; }
+.glass-recorder__controls { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; }
+.glass-recorder__controls button,
+.glass-recorder__overlay-close { display: grid; place-items: center; width: 34px; height: 34px; padding: 7px; border: 0; outline: none; border-radius: 8px; color: white; background: rgb(0 0 0 / 25%); backdrop-filter: blur(8px); cursor: pointer; }
+.glass-recorder__controls button:hover,
+.glass-recorder__overlay-close:hover { background: rgb(0 0 0 / 45%); }
+.glass-recorder__controls button:disabled { opacity: .4; cursor: default; }
+.glass-recorder__controls button:focus-visible,
+.glass-recorder__overlay-close:focus-visible { background: rgb(0 0 0 / 65%); }
+.glass-recorder__controls svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.glass-recorder__overlay-close { position: absolute; right: 10px; top: 10px; font-size: 22px; }
+.glass-recorder--minimal .glass-recorder__live { border: 0; }
+/* A rolling, translating brand mark—not an in-place spinner. */
+.rotation-option { display: inline-flex; align-items: center; gap: 5px; color: var(--text); font-size: 13px; cursor: pointer; }
+.rotation-control { position: relative; display: inline-flex; width: 14px; height: 14px; }
+.rotation-control svg { pointer-events: none; position: absolute; inset: 0; width: 14px; height: 14px; fill: none; stroke: var(--field-bg); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+.rotation-checkbox:checked + svg { opacity: 1; }
+.rotation-checkbox { appearance: none; width: 14px; height: 14px; border: 1px solid var(--text-dim); border-radius: 50%; margin: 0; background: transparent; cursor: pointer; }
+.rotation-checkbox:checked { background: var(--text); border-color: var(--text); }
+.glass-composer .glass-voicepill__mic { border: 0; box-shadow: none; background: transparent; }
+.rotation-checkbox:focus-visible { outline: 2px solid var(--text-dim); outline-offset: 3px; }
+.rotation-checkbox:disabled { opacity: .5; }
+.glass-markdown--revealing > p:nth-last-child(2) { display: inline; }
+.rolling-ball { display: inline-block; width: 30px; height: 32px; vertical-align: middle; overflow: hidden; }
+.rolling-ball img { width: 30px; height: 30px; display: block; animation: brand-spin 3s linear infinite; }
+@keyframes brand-spin { to { transform: rotate(360deg); } }
+.rolling-ball--moving { width: 36px; overflow: visible; }
+.rolling-ball--moving img { animation: brand-roll 1s linear infinite; }
+@keyframes brand-roll { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .rolling-ball img { animation: none; } }

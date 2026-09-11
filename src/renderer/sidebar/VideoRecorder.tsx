@@ -193,20 +193,32 @@ export function VideoRecorder({ onRecorded, onClose }: VideoRecorderProps): Reac
         onClose()
     }, [clearTimer, onClose, stopStream])
 
+    const capturePhoto = (): void => {
+        const video = videoRef.current
+        if (!video?.videoWidth || phase !== 'ready') return
+        const canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        const context = canvas.getContext('2d')
+        if (!context) return
+        context.translate(canvas.width, 0)
+        context.scale(-1, 1)
+        context.drawImage(video, 0, 0)
+        setPhase('finishing')
+        canvas.toBlob(blob => {
+            if (!mountedRef.current) return
+            if (!blob) { setError('Could not capture photo. Try again.'); setPhase('ready'); return }
+            onRecorded(new File([blob], `Camera photo ${Date.now()}.png`, { type: 'image/png' }))
+            stopStream()
+            onClose()
+        }, 'image/png')
+    }
+
     return (
         <div className="glass-recorder-backdrop" onMouseDown={(event) => {
             if (event.target === event.currentTarget) closeAndDiscard()
         }}>
-            <section className="glass-recorder" role="dialog" aria-modal="true" aria-labelledby="video-recorder-title">
-                <header className="glass-recorder__header">
-                    <span className="glass-recorder__icon"><CameraIcon /></span>
-                    <div>
-                        <h2 id="video-recorder-title">Record a video</h2>
-                        <p>It stays local and is converted to AI-readable frames when attached.</p>
-                    </div>
-                    <button type="button" className="glass-recorder__close" onClick={closeAndDiscard} aria-label="Close video recorder">×</button>
-                </header>
-
+            <section className="glass-recorder glass-recorder--minimal" role="dialog" aria-modal="true" aria-label="Camera">
                 <div className="glass-recorder__preview">
                     <video ref={videoRef} autoPlay muted playsInline />
                     {phase === 'starting' && !error && <div className="glass-recorder__notice">Starting camera…</div>}
@@ -214,24 +226,16 @@ export function VideoRecorder({ onRecorded, onClose }: VideoRecorderProps): Reac
                     {phase === 'recording' && (
                         <div className="glass-recorder__live"><span /> REC {formatMediaDuration(elapsedSeconds)}</div>
                     )}
+                    <button type="button" className="glass-recorder__overlay-close" onClick={closeAndDiscard} aria-label="Close camera" title="Close camera">×</button>
+                    <div className="glass-recorder__controls">
+                        <button type="button" onClick={phase === 'recording' ? finishRecording : startRecording} disabled={phase !== 'ready' && phase !== 'recording'} aria-label={phase === 'recording' ? 'Stop and attach video' : 'Start recording'} title={phase === 'recording' ? 'Stop and attach video' : 'Start recording'}>
+                            {phase === 'recording' ? <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" /></svg> : <CameraIcon />}
+                        </button>
+                        <button type="button" onClick={capturePhoto} disabled={phase !== 'ready'} aria-label="Capture photo" title="Capture photo">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5 6 8H3v12h18V8h-3l-2-3Z" /><circle cx="12" cy="13" r="3" /></svg>
+                        </button>
+                    </div>
                 </div>
-
-                <footer className="glass-recorder__footer">
-                    <span className="glass-recorder__privacy">Camera and microphone stop when this window closes.</span>
-                    {error ? (
-                        <button type="button" className="glass-recorder__secondary" onClick={closeAndDiscard}>Close</button>
-                    ) : phase === 'ready' ? (
-                        <button type="button" className="glass-recorder__record" onClick={startRecording}>
-                            <span /> Start recording
-                        </button>
-                    ) : phase === 'recording' ? (
-                        <button type="button" className="glass-recorder__stop" onClick={finishRecording}>
-                            <span /> Stop and attach
-                        </button>
-                    ) : phase === 'finishing' ? (
-                        <button type="button" className="glass-recorder__stop" disabled>Preparing video…</button>
-                    ) : null}
-                </footer>
             </section>
         </div>
     )

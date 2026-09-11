@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import type { ConfigStatus, MemoryEntry } from '@shared/types'
 import { getConfigBridge } from './config-bridge'
 import { getChatBridge } from './bridges'
-import { getTheme, setTheme, type AppTheme } from './theme'
+import { dockIcons, type DockPreferences, type DockIcon } from '@shared/dock-icon'
 
 /**
  * AI settings — deliberately small. Two ways to connect, nothing else:
@@ -58,30 +58,43 @@ const hintStyle: React.CSSProperties = {
 const storedDot = <span style={{ color: '#19c37d' }}>●</span>
 
 export function Settings({ onConfigStatusChange: _onConfigStatusChange, onBack }: { onConfigStatusChange?: (status: ConfigStatus) => void; onBack?: () => void } = {}): React.JSX.Element {
-    const [appearance, setAppearance] = useState<AppTheme>(getTheme)
-    useEffect(() => {
-        const update = (): void => setAppearance(getTheme())
-        window.addEventListener('desktop-theme-change', update)
-        return () => window.removeEventListener('desktop-theme-change', update)
-    }, [])
     return <section aria-label="AI settings" className="glass-settings">
         {onBack && <button type="button" className="settings-back" onClick={onBack}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14" /></svg>
             Back to chat
         </button>}
-        <label className="desktop-appearance">Appearance
-            <select value={appearance} onChange={event => {
-                const next = event.target.value as AppTheme
-                setAppearance(next); setTheme(next)
-            }}>
-                <option value="dark">Dark</option><option value="light">Light</option>
-            </select>
-        </label>
+        <DockIconSettings />
         <h3 style={sectionTitle}>Local AI</h3>
-        <p style={hintStyle}>Ollama runs Qwen Coder on this Mac. No Gemini, OpenRouter, or other provider key is needed. Download progress and pause/resume controls appear above the message field. The starter model supports text and code, not visual attachments.</p>
-        <p style={hintStyle}>GitHub sign-in and $1/month Stripe app access still require internet. Local answers do not consume cloud-model credits.</p>
+        <p style={hintStyle}>Ollama runs Qwen Coder on this Mac. Download progress and pause/resume controls appear above the message field. The starter model supports text and code, not visual attachments.</p>
         <MemorySection />
     </section>
+}
+
+function DockIconSettings(): React.JSX.Element {
+    const [value, setValue] = useState<(DockPreferences & { previews: Record<DockIcon, string> }) | null>(null)
+    const [busy, setBusy] = useState(false)
+    const [error, setError] = useState('')
+    useEffect(() => { void window.glass.dockPreferences().then(setValue).catch(() => setError('Could not load app icons.')) }, [])
+    const save = async (next: DockPreferences): Promise<void> => {
+        setBusy(true); setError('')
+        try { setValue(await window.glass.dockPreferences(next)); window.dispatchEvent(new Event('dock-icon-changed')) } catch { setError('Could not save app icon. Please try again.') } finally { setBusy(false) }
+    }
+    return <div>
+        <h3 style={sectionTitle}>App icon</h3>
+        <p style={hintStyle}>Choose your running app’s Dock icon. Your choice is remembered.</p>
+        <div style={{ display: 'flex', gap: 12, margin: '12px 0' }}>
+            {value && dockIcons.map(icon => <button type="button" key={icon} disabled={busy} aria-pressed={value.icon === icon}
+                onClick={() => void save({ icon, rotating: value.rotating })}
+                style={{ color: 'var(--text)', background: value.icon === icon ? 'var(--field-bg)' : 'transparent', border: value.icon === icon ? '1px solid var(--text-dim)' : '1px solid transparent', borderRadius: 12, padding: 10 }}>
+                <img src={value.previews[icon]} alt="" width="64" height="64" style={{ display: 'block' }} />
+                {icon === 'blue-ball' ? 'Coastal' : 'Classic'}
+            </button>)}
+        </div>
+        {value && <label className="rotation-option"><span className="rotation-control"><input className="rotation-checkbox" type="checkbox" checked={value.rotating} disabled={busy}
+            onChange={event => void save({ icon: value.icon, rotating: event.target.checked })} /><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8 2.5 2.5L12 5" /></svg></span><span>Rotate icon</span></label>}
+        <p style={hintStyle}>Rotation respects macOS Reduce Motion. The installed Finder icon stays static.</p>
+        {error && <p role="alert">{error}</p>}
+    </div>
 }
 
 /**
