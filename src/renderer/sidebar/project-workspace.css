@@ -65,7 +65,11 @@
 .project-tree__tools button{display:grid;place-items:center;width:28px;height:28px;padding:5px;flex-shrink:0}
 .project-tree__tools svg{width:17px;height:17px;overflow:visible}
 .project-tree input{padding:4px 8px;height:28px;font-size:12px;box-sizing:border-box}
-.project-tree input:focus,.project-tree input:focus-visible{outline:1px solid var(--text-dim);outline-offset:-1px;border-color:var(--border);box-shadow:none}
+.project-tree input:focus,.project-tree input:focus-visible{outline:none;border-color:transparent;box-shadow:none}
+.project-tree input{border-color:transparent}
+.project-tree input:focus{background:var(--bg-subtle)}
+.project-tree-toggle{display:flex;justify-content:flex-end;padding:2px 10px;flex:0 0 auto}
+.project-tree-toggle button{display:grid;place-items:center;width:28px;height:28px;padding:5px}
 .project-menu button,.workspace-bar .project-tabs .project-menu button{padding:6px 10px;min-height:30px;gap:10px}
 .project-menu .workspace-icon{width:17px;height:17px}
 .file-type-icon{display:inline-grid;place-items:center;width:17px;height:18px;flex:0 0 17px;border-radius:4px;background:color-mix(in srgb,currentColor 12%,transparent);font-size:10px;font-weight:650;line-height:1}
