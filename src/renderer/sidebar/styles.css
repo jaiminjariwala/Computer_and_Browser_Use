@@ -90,8 +90,6 @@ body {
    Only the actual toolbar controls intercept input in that row. */
 @media (min-width: 721px) {
     .glass-app--codeopen:not(.glass-app--navhidden) .glass-workspace { overflow: visible; }
-    .glass-app--codeopen:not(.glass-app--navhidden) .glass-main { margin-top: -38px; }
-    .glass-app--codeopen:not(.glass-app--navhidden) .glass-conversation { padding-top: 8px; }
     .glass-app--codeopen:not(.glass-app--navhidden) .workspace-bar {
         background: transparent;
         pointer-events: none;
@@ -489,7 +487,7 @@ body.is-resizing-nav {
     cursor: pointer;
 }
 
-.environment-card > button:hover { background: var(--hover-bg, #f2f2f2); }
+.environment-card > button:hover { background: var(--bg-subtle); }
 .environment-card__chevron { color: rgb(142, 143, 144); font-size: 23px; font-weight: 300; line-height: 1; }
 .environment-card button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .environment-card__counts b { color: #159455; font-weight: 500; }

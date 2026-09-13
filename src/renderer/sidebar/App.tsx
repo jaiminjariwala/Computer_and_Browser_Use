@@ -68,7 +68,6 @@ import { EnvironmentMenu, type EnvironmentSource } from './EnvironmentMenu'
 import { InspectorPanel, type InspectorArtifact } from './InspectorPanel'
 import { WorkspaceBar } from './WorkspaceBar'
 import { TerminalPanel } from './TerminalPanel'
-import { ConversationMinimap } from './ConversationMinimap'
 import {
     TaskActivityCard,
 } from './TaskActivity'
@@ -1549,7 +1548,6 @@ export function App(): React.JSX.Element {
                     <WorkspaceBar
                         projectWidth={projectOpen || codeArtifact ? codePanelWidth : undefined}
                         tabHostRef={setProjectTabHost}
-                        onOpenFiles={() => { setProjectOpen(true); setInspectorArtifact(null); setRightPanelOpen(false) }}
                         rightOpen={rightPanelOpen || projectOpen || !!codeArtifact || !!inspectorArtifact}
                         terminalOpen={terminalOpen}
                         onToggleNav={() => setNavOpen((open) => !open)}
@@ -1638,17 +1636,6 @@ export function App(): React.JSX.Element {
                 <div className="glass-content-row">
                 <div className="glass-main">
                   <div className="glass-main-content">
-                    {!showSettings && (
-                        <ConversationMinimap
-                            turns={conv.turns}
-                            onSelect={(turnIndex) => {
-                                const row = conversationRef.current?.querySelector<HTMLElement>(
-                                    `[data-turn-index="${turnIndex}"]`
-                                )
-                                row?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                            }}
-                        />
-                    )}
                     {showSettings ? (
                         <div className="glass-panel">
                             <div className="glass-settings__scroll">
