@@ -20,7 +20,7 @@ window.glass = {startPlusCheckout:async()=>{throw new Error('Sandbox checkout un
 window.showAccess=()=>{const host=document.createElement('div');document.body.append(host);const root=createRoot(host);root.render(<PlusUpgradeModal onClose={()=>root.unmount()}/>)};
 window.workspace = {
  root: async () => ({path:'/fixture/Rocket',name:'Rocket'}),
- choose: async () => null,
+ choose: async () => ({path:'/fixture/Rocket',name:'Rocket'}),
  list: async (path='') => path === 'src' ? [{name:'main.ts',path:'src/main.ts',directory:false}] : [{name:'src',path:'src',directory:true},{name:'README.md',path:'README.md',directory:false}],
  read: async path => ({...files[path]}),
  write: async file => {if(files[file.path]?.revision !== file.revision) throw Error('Conflict'); files[file.path]={...file,revision:'2'}; window.saved=file.content; return {...files[file.path]};},
@@ -71,11 +71,24 @@ try {
     await page.getByTitle('src/main.ts', {exact:true}).click()
     await page.locator('.monaco-editor textarea').waitFor()
     assert.equal(await page.locator('.monaco-editor').first().evaluate(node => getComputedStyle(node).outlineStyle),'none')
+    assert.equal(await page.locator('.monaco-editor .scrollbar.vertical').first().evaluate(node => getComputedStyle(node).width), '6px')
+    assert.equal(await page.locator('.monaco-editor .scrollbar.vertical .slider').first().evaluate(node => getComputedStyle(node).borderRadius), '999px')
     await page.locator('.monaco-editor textarea').focus()
     await page.keyboard.press('Meta+End')
     await page.keyboard.type('// saved from workspace')
-    await page.getByRole('button', {name:'Save',exact:true}).click()
     await page.waitForFunction(() => window.saved?.includes('saved from workspace'))
+    const countBefore = await page.getByRole('tab').count()
+    await page.getByTitle('README.md', {exact:true}).click()
+    await page.getByRole('navigation', {name:'File breadcrumb'}).getByText('README.md').waitFor()
+    assert.equal(await page.getByRole('tab').count(), countBefore)
+    await page.getByTitle('src/main.ts', {exact:true}).click()
+    await page.getByRole('navigation', {name:'File breadcrumb'}).getByText('main.ts').waitFor()
+    const treeBox = await page.getByRole('navigation', {name:'Project files'}).boundingBox()
+    const editorBox = await page.locator('.project-editor').boundingBox()
+    assert.ok(treeBox.x >= editorBox.x + editorBox.width - 1)
+    await page.getByLabel('Filter loaded files').focus()
+    assert.equal(await page.getByLabel('Filter loaded files').evaluate(node => getComputedStyle(node).outlineWidth), '1px')
+    assert.equal(await page.getByLabel('Filter loaded files').evaluate(node => node.getBoundingClientRect().height), 28)
     const screenshot = resolve(tmpdir(), 'computer-browser-workspace.png')
     await page.screenshot({path:screenshot})
     await page.getByRole('button',{name:'Add workspace tab'}).click()

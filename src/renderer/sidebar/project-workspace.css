@@ -55,3 +55,27 @@
 /* Monaco applies an outline to the entire editor even when it isn't focused.
    Keep focus indicators on controls, not a frame around the content pane. */
 .project-workspace .monaco-editor{outline:none}
+.project-browser__bar{padding:4px 8px;gap:4px;min-height:36px}
+.project-browser__bar button{display:grid;place-items:center;width:28px;height:28px;padding:5px;font-size:16px}
+.project-browser__bar button svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
+.project-browser__bar input,.project-browser__bar input:focus{height:28px;padding:4px 8px;font-size:12px;border:0;box-shadow:none;border-radius:6px;background:var(--bg-subtle)}
+.project-browser__bar input:focus-visible{outline:1px solid var(--text-dim);outline-offset:-1px}
+.project-tree{order:0;border-right:0;border-left:1px solid var(--border);min-width:0}
+.project-tree .project-tree__tools{padding:0 10px 6px;min-height:28px;flex-shrink:0}
+.project-tree__tools button{display:grid;place-items:center;width:28px;height:28px;padding:5px;flex-shrink:0}
+.project-tree__tools svg{width:17px;height:17px;overflow:visible}
+.project-tree input{padding:4px 8px;height:28px;font-size:12px;box-sizing:border-box}
+.project-tree input:focus,.project-tree input:focus-visible{outline:1px solid var(--text-dim);outline-offset:-1px;border-color:var(--border);box-shadow:none}
+.project-menu button,.workspace-bar .project-tabs .project-menu button{padding:6px 10px;min-height:30px;gap:10px}
+.project-menu .workspace-icon{width:17px;height:17px}
+.file-type-icon{display:inline-grid;place-items:center;width:17px;height:18px;flex:0 0 17px;border-radius:4px;background:color-mix(in srgb,currentColor 12%,transparent);font-size:10px;font-weight:650;line-height:1}
+.project-tree .project-tree__entry{padding-top:4px;padding-bottom:4px;min-height:27px}
+.project-tree .project-tree__name{color:inherit;min-width:0;overflow:hidden;text-overflow:ellipsis;flex-shrink:1}
+.project-tree__chevron{display:flex;width:17px;flex:0 0 17px}
+.project-tree__chevron.is-expanded svg{transform:rotate(90deg)}
+.project-tree__entry>.workspace-icon{width:17px;height:17px;color:var(--text-dim)}
+.project-breadcrumb{min-height:34px;padding:6px 12px}
+.project-breadcrumb>span{display:flex;align-items:center;gap:7px;overflow:auto;scrollbar-width:none}
+.project-breadcrumb .workspace-icon{width:12px;height:12px}
+.project-breadcrumb [aria-current=page]{color:var(--text);font-weight:500}
+.project-workspace .monaco-scrollable-element>.scrollbar>.slider{border-radius:999px}

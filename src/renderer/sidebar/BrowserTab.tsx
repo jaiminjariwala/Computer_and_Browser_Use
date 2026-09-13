@@ -37,11 +37,11 @@ export function BrowserTab({ tab, active }: {tab:BrowserTabState;active:boolean}
             event.preventDefault(); setError('')
             void window.browserWorkspace.navigate(tab.id,address).catch(reason => setError(String(reason)))
         }}>
-            <button type="button" aria-label="Back" disabled={!tab.canGoBack} onClick={() => action('back')}>←</button>
-            <button type="button" aria-label="Forward" disabled={!tab.canGoForward} onClick={() => action('forward')}>→</button>
-            <button type="button" aria-label={tab.loading ? 'Stop loading' : 'Reload page'} onClick={() => action(tab.loading ? 'stop' : 'reload')}>{tab.loading ? '×' : '↻'}</button>
+            <button type="button" aria-label="Back" disabled={!tab.canGoBack} onClick={() => action('back')}><svg viewBox="0 0 24 24"><path d="m12 5-7 7 7 7M5 12h14" /></svg></button>
+            <button type="button" aria-label="Forward" disabled={!tab.canGoForward} onClick={() => action('forward')}><svg viewBox="0 0 24 24"><path d="m12 5 7 7-7 7M5 12h14" /></svg></button>
+            <button type="button" aria-label={tab.loading ? 'Stop loading' : 'Reload page'} onClick={() => action(tab.loading ? 'stop' : 'reload')}><svg viewBox="0 0 24 24">{tab.loading ? <path d="m6 6 12 12M18 6 6 18" /> : <><path d="M20 7v5h-5" /><path d="M20 12a8 8 0 1 0-2 5M20 12a8 8 0 0 0-2-5" /></>}</svg></button>
             <input ref={input} aria-label="Search or enter a URL" placeholder="Search or enter a URL" value={address} onChange={event => setAddress(event.target.value)} spellCheck={false} />
-            <button aria-label="Go to address">↗</button>
+            <button aria-label="Go to address"><svg viewBox="0 0 24 24"><path d="M6 18 18 6M6 6h12v12" /></svg></button>
         </form>
         {(error || tab.error) && <p className="project-browser__error" role="alert">{error || tab.error}</p>}
         <div ref={slot} className="project-browser__page">

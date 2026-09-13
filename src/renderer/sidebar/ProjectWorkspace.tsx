@@ -7,9 +7,10 @@ import type { WorkspaceEntry, WorkspaceFile, WorkspaceRoot, WorkspaceTaskEvent }
 import './project-workspace.css'
 import { BrowserTab } from './BrowserTab'
 import { WorkspaceIcon } from './WorkspaceIcon'
+import { FileTypeIcon } from './FileTypeIcon'
 import type { BrowserSnapshot, BrowserTabState } from '../../shared/browser'
 
-type Tab = { id: string; title: string; kind: 'file' | 'generated' | 'review' | 'terminal' | 'browser'; file?: WorkspaceFile; draft?: string; code?: string; language?: string; browser?: BrowserTabState }
+type Tab = { id: string; title: string; kind: 'files' | 'file' | 'generated' | 'review' | 'terminal' | 'browser'; file?: WorkspaceFile; draft?: string; code?: string; language?: string; browser?: BrowserTabState }
 const language = (path: string): string => ({ ts: 'typescript', tsx: 'typescript', js: 'javascript', jsx: 'javascript', py: 'python', json: 'json', css: 'css', html: 'html', md: 'markdown', sh: 'shell', swift: 'swift', go: 'go', rs: 'rust', yml: 'yaml', yaml: 'yaml' }[path.split('.').pop() ?? ''] || 'plaintext')
 
 function ProjectTerminal(): React.JSX.Element {
@@ -44,6 +45,8 @@ export function ProjectWorkspace({ visible, artifact, onClose, width, onResize, 
     const [saveName, setSaveName] = useState<string | null>(null)
     const tab = tabs.find(item => item.id === active)
     const tabsRef = useRef(tabs)
+    const saving = useRef(false)
+    const fileRequest = useRef(0)
     tabsRef.current = tabs
     const fail = (reason: unknown): void => setError(reason instanceof Error ? reason.message : String(reason))
     const load = useCallback(async (path = '') => {
@@ -55,15 +58,26 @@ export function ProjectWorkspace({ visible, artifact, onClose, width, onResize, 
         await load()
     }, [load])
     const openFile = useCallback(async (path: string) => {
-        const id = `file:${path}`
-        if (tabsRef.current.some(item => item.id === id)) { setActive(id); return }
+        const folder = tabsRef.current.find(item => item.id.startsWith('files:'))
+        const current = folder ?? tabsRef.current.find(item => item.kind === 'file')
+        const id = current?.id ?? 'files:workspace'
+        if (current?.file?.path === path) { setActive(id); return }
+        if (saving.current || (current?.file && current.draft !== current.file.content)) {
+            throw new Error('Waiting for autosave. Please select the file again in a moment. Your edits are preserved.')
+        }
+        const request = ++fileRequest.current
         const file = await window.workspace.read(path)
-        setTabs(previous => previous.some(item => item.id === id) ? previous : [...previous, { id, title: path.split('/').pop()!, kind: 'file', file, draft: file.content }])
+        if (request !== fileRequest.current) return
+        const next: Tab = { id, title: current?.title ?? 'Files and folders', kind: 'file', file, draft: file.content }
+        setTabs(previous => previous.some(item => item.id === id) ? previous.map(item => item.id === id ? next : item) : [...previous, next])
         setActive(id)
+        setTreeOpen(true)
+        setError('')
     }, [])
     useEffect(() => { if (window.workspace) void refresh().catch(fail) }, [refresh])
     useEffect(() => {
         if (!window.browserWorkspace) return
+        let lastFocus: string | null | undefined
         const sync = (state: BrowserSnapshot): void => {
             setTabs(previous => {
                 const next = previous.filter(item => item.kind !== 'browser' || state.tabs.some(tab => item.browser?.id === tab.id))
@@ -75,7 +89,8 @@ export function ProjectWorkspace({ visible, artifact, onClose, width, onResize, 
                 }
                 return next
             })
-            if (state.focusId) { setActive(`browser:${state.focusId}`); setTreeOpen(false) }
+            if (state.focusId && state.focusId !== lastFocus) { setActive(`browser:${state.focusId}`); setTreeOpen(false) }
+            lastFocus = state.focusId
         }
         const dispose = window.browserWorkspace.onChanged(sync)
         void window.browserWorkspace.list().then(sync).catch(fail)
@@ -103,13 +118,22 @@ export function ProjectWorkspace({ visible, artifact, onClose, width, onResize, 
         setActive(id)
     }, [artifact])
     const save = useCallback(async () => {
-        const current = tabsRef.current.find(item => item.id === active)
-        if (!current?.file) return
-        const content = current.draft ?? current.file.content
-        const saved = await window.workspace.write({ ...current.file, content })
-        setTabs(previous => previous.map(item => item.id === current.id ? { ...item, file: saved } : item))
-        setError('')
-    }, [active])
+        if (saving.current) return
+        saving.current = true
+        try {
+            for (const current of tabsRef.current) {
+                if (!current.file || current.draft === current.file.content) continue
+                const saved = await window.workspace.write({ ...current.file, content: current.draft ?? current.file.content })
+                setTabs(previous => previous.map(item => item.id === current.id ? { ...item, file: saved } : item))
+            }
+            setError('')
+        } finally { saving.current = false }
+    }, [])
+    useEffect(() => {
+        if (!tabs.some(item => item.file && item.draft !== item.file.content)) return
+        const timer = setTimeout(() => { void save().catch(fail) }, 700)
+        return () => clearTimeout(timer)
+    }, [tabs, save])
     useEffect(() => {
         if (!visible) return
         const listener = (event: KeyboardEvent): void => {
@@ -125,13 +149,16 @@ export function ProjectWorkspace({ visible, artifact, onClose, width, onResize, 
         return () => window.removeEventListener('beforeunload', listener)
     }, [dirty])
     const choose = async (): Promise<void> => {
-        if (dirty) { setError('Save or close modified files before changing project folders.'); return }
+        if (dirty || saving.current) { setError('Wait for autosave before changing project folders.'); return }
         const chosen = await window.workspace.choose()
-        if (chosen) { setRoot(chosen); setTabs(previous => previous.filter(item => item.kind === 'browser')); setActive(''); setTree({}); setExpanded(new Set([''])); await load(); setError('') }
+        if (chosen) {
+            const id = `files:${chosen.path}`
+            setRoot(chosen); setTabs(previous => [...previous.filter(item => item.kind === 'browser'), { id, kind: 'files', title: chosen.name }]); setActive(id); setTreeOpen(true); setTree({}); setExpanded(new Set([''])); await load(); setError('')
+        }
     }
     const add = async (kind: 'files' | 'terminal' | 'review' | 'browser'): Promise<void> => {
         setMenu(false)
-        if (kind === 'files') { setTreeOpen(true); await load(); return }
+        if (kind === 'files') { await choose(); return }
         if (kind === 'browser') { await window.browserWorkspace.create(); return }
         const id = `${kind}:${Date.now()}`
         const code = kind === 'review' ? await window.workspace.review() : undefined
@@ -150,23 +177,21 @@ export function ProjectWorkspace({ visible, artifact, onClose, width, onResize, 
             if (!entry.directory) { void openFile(entry.path).catch(fail); return }
             setExpanded(previous => { const next = new Set(previous); if (next.has(entry.path)) next.delete(entry.path); else next.add(entry.path); return next })
             void load(entry.path).catch(fail)
-        }} title={entry.path}><span>{entry.directory ? expanded.has(entry.path) ? '⌄' : '›' : '▤'}</span>{entry.name}</button>
+        }} title={entry.path}>{entry.directory ? <span className={`project-tree__chevron${expanded.has(entry.path) ? ' is-expanded' : ''}`}><WorkspaceIcon name="chevron" /></span> : <FileTypeIcon path={entry.path} />}<span className="project-tree__name">{entry.name}</span></button>
         {entry.directory && expanded.has(entry.path) && renderTree(entry.path, depth + 1)}</React.Fragment>
     })
     const tabStrip = <div className={`project-tabs${tabHost ? ' project-tabs--titlebar' : ''}`}><div role="tablist" aria-label="Workspace tabs">{tabs.map(item => <div className={active === item.id ? 'is-active' : ''} key={item.id}>
-            <button role="tab" aria-selected={active === item.id} onClick={() => { setActive(item.id); if (item.browser) setTreeOpen(false) }}><WorkspaceIcon name={item.kind === 'generated' ? 'file' : item.kind} /><span>{item.title}{item.file && item.draft !== item.file.content ? ' •' : ''}</span></button><button aria-label={`Close ${item.title}`} onClick={() => closeTab(item)}><WorkspaceIcon name="close" /></button>
+            <button role="tab" aria-selected={active === item.id} onClick={() => { setActive(item.id); setTreeOpen(item.kind === 'files' || item.kind === 'file') }}><WorkspaceIcon name={item.kind === 'generated' ? 'file' : item.kind} /><span>{item.title}{item.file && item.draft !== item.file.content ? ' •' : ''}</span></button><button aria-label={`Close ${item.title}`} onClick={() => closeTab(item)}><WorkspaceIcon name="close" /></button>
         </div>)}</div><div className="project-add"><button aria-label="Add workspace tab" aria-expanded={menu} onClick={() => setMenu(value => !value)}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg></button>
-        {menu && <><button className="project-menu-dismiss" aria-label="Dismiss tab menu" onClick={() => setMenu(false)} /><div className="project-menu" role="menu">{(['review', 'terminal', 'browser', 'files'] as const).map(kind => <button role="menuitem" key={kind} onClick={() => void add(kind).catch(fail)}><WorkspaceIcon name={kind} /><span>{kind[0].toUpperCase() + kind.slice(1)}</span>{(kind === 'browser' || kind === 'files') && <kbd>{kind === 'browser' ? '⌘T' : '⌘P'}</kbd>}</button>)}</div></>}</div>
+        {menu && <><button className="project-menu-dismiss" aria-label="Dismiss tab menu" onClick={() => setMenu(false)} /><div className="project-menu" role="menu">{(['review', 'terminal', 'browser', 'files'] as const).map(kind => <button role="menuitem" key={kind} onClick={() => void add(kind).catch(fail)}><WorkspaceIcon name={kind} /><span>{kind === 'files' ? 'Files and folders' : kind[0].toUpperCase() + kind.slice(1)}</span>{(kind === 'browser' || kind === 'files') && <kbd>{kind === 'browser' ? '⌘T' : '⌘P'}</kbd>}</button>)}</div></>}</div>
         {!tabHost && <button className="project-tabs__hide" aria-label="Hide workspace" onClick={onClose}>×</button>}</div>
     return <aside className="project-workspace" aria-label="Project workspace" style={{ display: visible ? 'flex' : 'none', width, maxWidth: 'calc(100vw - 300px)' }}>
         <div className="project-resizer" role="separator" aria-label="Resize project workspace" aria-orientation="vertical" onPointerDown={event => {
             event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId)
         }} onPointerMove={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) onResize(Math.max(360, Math.min(window.innerWidth - 300, window.innerWidth - event.clientX))) }} />
         {tabHost ? visible && createPortal(tabStrip,tabHost) : tabStrip}
-        <div className="project-breadcrumb"><span title={root?.path}>{root?.name || 'Workspace'}{tab?.file ? ` / ${tab.file.path.replaceAll('/', ' / ')}` : ''}</span>
-        {tab?.file && <button onClick={() => void save().catch(fail)}>Save</button>}
+        {tab?.file && <nav className="project-breadcrumb" aria-label="File breadcrumb"><span>{[root?.name ?? 'Workspace', ...tab.file.path.split('/')].map((part, index, parts) => <React.Fragment key={index}>{index > 0 && <WorkspaceIcon name="chevron" />}<span aria-current={index === parts.length - 1 ? 'page' : undefined}>{part}</span></React.Fragment>)}</span></nav>}
         {tab?.kind === 'generated' && <button onClick={() => setSaveName(`untitled.${tab.language === 'typescript' ? 'ts' : tab.language === 'python' ? 'py' : 'txt'}`)}>Save as file</button>}
-        <button onClick={() => void choose().catch(fail)}>Open folder</button></div>
         {saveName !== null && tab?.kind === 'generated' && <form className="project-save-as" onSubmit={event => {
             event.preventDefault()
             const path = saveName.trim()
@@ -178,8 +203,8 @@ export function ProjectWorkspace({ visible, artifact, onClose, width, onResize, 
             <button onClick={() => void window.workspace.stop()}>Stop</button></div>}
         <div className="project-content"><main className="project-editor">
             {tabs.filter(item => item.kind === 'terminal' || item.kind === 'browser').map(item => <div className="project-surface" style={{ display: active === item.id ? 'flex' : 'none' }} key={item.id}>{item.kind === 'terminal' ? <ProjectTerminal /> : item.browser && <BrowserTab tab={item.browser} active={visible && active === item.id && !menu && !browserObscured} />}</div>)}
-            {tab && ['file', 'generated', 'review'].includes(tab.kind) && <Editor height="100%" path={tab.id} theme={MONACO_THEME} beforeMount={ensureCopilotTheme} language={tab.file ? language(tab.file.path) : tab.kind === 'review' ? 'diff' : tab.language} value={tab.file ? tab.draft : tab.code} onChange={value => setTabs(previous => previous.map(item => item.id === tab.id ? { ...item, draft: value ?? '' } : item))} options={{ readOnly: tab.kind !== 'file', minimap: { enabled: false }, automaticLayout: true, fontSize: 13, padding: { top: 16 }, scrollBeyondLastLine: false }} />}
-            {!tab && <div className="project-empty"><WorkspaceIcon name="files" /><strong>Open a file</strong><p>Select a file from the workspace tree or open a project folder.</p></div>}
-        </main>{treeOpen && <nav className="project-tree" aria-label="Project files"><div className="project-tree__tools"><button aria-label="Refresh files" onClick={() => { for (const path of expanded) void load(path).catch(fail) }}><WorkspaceIcon name="refresh" /></button><button aria-label="Close files" onClick={() => setTreeOpen(false)}><WorkspaceIcon name="close" /></button></div><div><input placeholder="Filter files…" aria-label="Filter loaded files" value={filter} onChange={event => setFilter(event.target.value)} /></div>{renderTree()}{tree['']?.length === 0 && <p>No files yet. Ask the agent to build something here.</p>}</nav>}</div>
+            {tab && ['file', 'generated', 'review'].includes(tab.kind) && <Editor height="100%" key={tab.file?.path ?? tab.id} path={tab.file ? `${tab.id}/${tab.file.path}` : tab.id} theme={MONACO_THEME} beforeMount={ensureCopilotTheme} language={tab.file ? language(tab.file.path) : tab.kind === 'review' ? 'diff' : tab.language} value={tab.file ? tab.draft : tab.code} onChange={value => setTabs(previous => previous.map(item => item.id === tab.id ? { ...item, draft: value ?? '' } : item))} options={{ readOnly: tab.kind !== 'file', domReadOnly: tab.kind !== 'file', fixedOverflowWidgets: true, minimap: { enabled: false }, automaticLayout: true, fontSize: 13, padding: { top: 16 }, scrollBeyondLastLine: false, scrollbar: { verticalScrollbarSize: 6, horizontalScrollbarSize: 6, verticalSliderSize: 6, horizontalSliderSize: 6, useShadows: false } }} />}
+            {(!tab || tab.kind === 'files') && <div className="project-empty"><WorkspaceIcon name="files" /><strong>Open a file</strong><p>Select a file from the workspace tree or open a project folder.</p></div>}
+        </main>{treeOpen && tab?.kind !== 'browser' && <nav className="project-tree" aria-label="Project files"><div className="project-tree__tools"><button aria-label="Refresh files" onClick={() => { for (const path of expanded) void load(path).catch(fail) }}><WorkspaceIcon name="refresh" /></button><button aria-label="Close files" onClick={() => setTreeOpen(false)}><WorkspaceIcon name="close" /></button></div><div><input placeholder="Filter files…" aria-label="Filter loaded files" value={filter} onChange={event => setFilter(event.target.value)} /></div>{renderTree()}{tree['']?.length === 0 && <p>No files yet. Ask the agent to build something here.</p>}</nav>}</div>
     </aside>
 }
