@@ -64,8 +64,7 @@ export function PlusUpgradeModal({ onClose }: PlusUpgradeModalProps): React.JSX.
                     {[
                         'Ask everyday questions and get Python or other code answers',
                         'Code opens in the right-side workspace',
-                        'GitHub sign-in, saved chats, and attachments',
-                        'Local AI on your Mac — no provider keys or per-request cloud bill'
+                        'GitHub sign-in, saved chats, and attachments'
                     ].map((feature) => (
                         <li key={feature}><CheckIcon /><span>{feature}</span></li>
                     ))}
